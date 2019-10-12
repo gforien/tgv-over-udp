@@ -12,6 +12,8 @@ En octobre 2019, leur start-up entre à la bourse de New York pour une valeur de
 Le TGV est maintenant lancé, et il est en passe de conquérir le monde.<br>
 **Montez en voiture, mais attention ! Un train peut en cacher un autre :fire:**
 
+![Logo](logo.png)
+
 ## :man_pilot: En voiture !
 ```bash
 $ make
