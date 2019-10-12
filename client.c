@@ -61,7 +61,7 @@ int main (int argc, char *argv[]) {
     setsockopt(i_socketfd, SOL_SOCKET, SO_REUSEADDR, &i_1, sizeof(int));
 
     // On ne bind pas pour le client
-    // On est en UPD, on n'appelle pas listen()    
+    // On est en UPD, on n'appelle pas listen()
 
 
 
@@ -101,19 +101,29 @@ int main (int argc, char *argv[]) {
         perror("main(): erreur à l'ouverture du fichier");
         exit(-1);
     }
-    
+
     size_t n, m;
     unsigned char buffer[RCVSIZE];
     // int cwnd = 8192;
 
-/*    //for(int i=0; i++; i<5) { */ 
-    while(1) {
+    printf("main(): ecris 5 messages pour le serveur\n");
+    for(int i=0; i<5; i++) {
         fgets(msg, RCVSIZE, stdin);
         sendto(i_socket_new, msg, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
         //recvfrom(i_socketfd, blanmsg, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
         //printf("%s",blanmsg);
     }
-    printf("main(): fin du while\n");
+    printf("main(): fin de la boucle for\n");
+
+
+
+/*
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 100000;
+    // if (setsockopt(rcv_sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+        perror("Error");
+    }
 
     do {
         printf("main(): dans le du while\n");
@@ -132,7 +142,7 @@ int main (int argc, char *argv[]) {
     if (m) {
         printf("m=%d\n",(int)m);
         perror("main(): erreur à la fin du while");
-    }
+    }*/
 
 
 
@@ -153,13 +163,13 @@ int three_way_handshake(int socket, struct sockaddr_in adresse){
     if (sendto(socket, "SYN", 3, 0, (struct sockaddr*)&adresse, sizeof(adresse)) <0){
         perror("three_way_handshake(): SYN non-envoyé");
     }
-    
+
     // on doit recevoir SYN-ACK 8000
     char msg_complet[14];
     char synack[8];
     if (recvfrom(socket, msg_complet, 14, 0, (struct sockaddr*)&adresse, &addrlen) <0) {
         perror("three_way_handshake(): SYN-ACK 8000");
- 
+
     // on récupère le début du message uniquement
     } else {
         strncpy(synack, msg_complet, 7);
@@ -179,7 +189,7 @@ int three_way_handshake(int socket, struct sockaddr_in adresse){
     if (sendto(socket, "ACK", 3, 0, (struct sockaddr*)&adresse, sizeof(adresse)) <0){
         perror("three_way_handshake(): ACK non-envoyé");
     }
-    
+
     printf("three_way_handshake(): return %d\n", atoi(port));
     return atoi(port);
 }
