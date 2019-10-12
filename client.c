@@ -4,11 +4,12 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include "client.h"
 
-#define RCVSIZE 1024
+#define RCVSIZE 8192
 
 // ( ! ) dans rcvfrm() il faut bien donner un pointeur vers une variable i = sizeof(s_servaddr)
 //       et non pas la taille elle-même parce qu'on ne la connait pas à l'avance
@@ -16,7 +17,7 @@
 int main (int argc, char *argv[]) {
 
     int port = 5001;
-    char strAdresse[] = "000.000.000.000";
+    char strAdresse[] = "127.0.0.1      ";
     char msg[RCVSIZE];
     char blanmsg[RCVSIZE];
 
@@ -25,6 +26,10 @@ int main (int argc, char *argv[]) {
         default:
             printf("syntax: ./client <ip_serveur> <port_serveur>\n");
             exit(1);
+            break;;
+
+        case 1:
+            // paramètres par défaut
             break;;
 
         case 2:
@@ -88,6 +93,13 @@ int main (int argc, char *argv[]) {
     setsockopt(i_socket_new, SOL_SOCKET, SO_REUSEADDR, &i_1, sizeof(int));
     printf("main(): descripteur de fichier ouvert sur le port %d\n", i_newport);
 
+    // on ajoute une option timeout à la socket
+    struct timeval s_timeout;
+    s_timeout.tv_sec = 5;
+    if (setsockopt(i_socket_new, SOL_SOCKET, SO_RCVTIMEO, &s_timeout, sizeof(s_timeout)) < 0) {
+        perror("main(): erreur à l'ajout de l'option timeout");
+    }
+
     // on ne bind pas pour le client
 
 
@@ -109,14 +121,6 @@ int main (int argc, char *argv[]) {
     printf("main(): on doit envoyer un 1er message au serveur\n");
     fgets(msg, RCVSIZE, stdin);
     sendto(i_socket_new, msg, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
-
-/*
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 100000;
-    // if (setsockopt(rcv_sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-        perror("Error");
-    }*/
 
     printf("main(): début de la boucle while\n");
     do {

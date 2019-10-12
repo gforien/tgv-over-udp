@@ -4,8 +4,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/select.h>
 #include <sys/time.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include "serveur.h"
 
@@ -19,7 +19,9 @@ int main (int argc, char *argv[]) {
 
     // On gère les arguments
     int i_port= 5001;
-    if (argc == 2) {
+    if (argc == 1) {
+        printf("main(): aucun argument reçu -> port = %d\n", i_port);
+    } else if (argc == 2) {
         i_port = atoi(argv[1]);
     }
     else {
@@ -48,11 +50,10 @@ int main (int argc, char *argv[]) {
     // On initalise la socket
     int i_socketfd;
     if ( (i_socketfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("main(): erreur sur l'ouverture du descripteur");
+        perror("main(): erreur sur l'ouverture de la socket initiale");
         exit(-1);
     }
     setsockopt(i_socketfd, SOL_SOCKET, SO_REUSEADDR, &i_1, sizeof(int));
-    printf("main(): descripteur de fichier ouvert sur le port %d\n", i_port);
 
     // On bind la socket avec l'adresse du serveur
     if (bind(i_socketfd, (struct sockaddr*) &s_servaddr, sizeof(s_servaddr)) <0) {
@@ -60,7 +61,10 @@ int main (int argc, char *argv[]) {
         close(i_socketfd);
         exit(-1);
     }
-    printf("main(): socket bindé à l'adresse serveur, port %d\n", i_port);
+
+    char str_servaddr[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &s_servaddr.sin_addr, str_servaddr, sizeof(str_servaddr));
+    printf("main(): socket bindée à l'adresse %s:%d\n", str_servaddr, i_port);
 
     // On est en UPD, on n'appelle pas listen()
 
@@ -142,7 +146,6 @@ int main (int argc, char *argv[]) {
         perror("main(): erreur à la fin du while");
     }
     printf("main(): la boucle while s'est bien terminée\n");
-
 
 
     printf("main(): on ferme les sockets\n");
