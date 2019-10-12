@@ -28,71 +28,72 @@ int main (int argc, char *argv[]) {
     }
 
 
-    // On crée notre socket "vide"
-    struct sockaddr_in s_address;
-    int i_valid = 1;
-    memset(&s_address, 0, sizeof(s_address));
-    s_address.sin_family= AF_INET;
-    s_address.sin_port= htons(i_port);
-    s_address.sin_addr.s_addr= htonl(INADDR_ANY);
 
+    /************************************************************************/
+    /*                          1. SOCKET INITIALE
+    /************************************************************************/
+    // On crée l'adresse serveur ANY:5001
+    struct sockaddr_in s_servaddr;
+    int i_1 = 1;
+    memset(&s_servaddr, 0, sizeof(s_servaddr));
+    s_servaddr.sin_family= AF_INET;
+    s_servaddr.sin_port= htons(i_port);
+    s_servaddr.sin_addr.s_addr= htonl(INADDR_ANY);
 
-    // On initalise le descripteur
-    int i_socket_fd;
-    if ( (i_socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    // On crée l'adresse du client, vide
+    struct sockaddr_in s_cliaddr;
+    memset(&s_cliaddr, 0, sizeof(s_cliaddr));
+    socklen_t t_cliaddrlen= sizeof(s_cliaddr);
+
+    // On initalise la socket
+    int i_socketfd;
+    if ( (i_socketfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("main(): erreur sur l'ouverture du descripteur");
         exit(-1);
     }
-    setsockopt(i_socket_fd, SOL_SOCKET, SO_REUSEADDR, &i_valid, sizeof(int));
+    setsockopt(i_socketfd, SOL_SOCKET, SO_REUSEADDR, &i_1, sizeof(int));
     printf("main(): descripteur de fichier ouvert sur le port %d\n", i_port);
 
-
-    // On bind le tout
-    if (bind(i_socket_fd, (struct sockaddr*) &s_address, sizeof(s_address)) == -1) {
+    // On bind la socket avec l'adresse du serveur
+    if (bind(i_socketfd, (struct sockaddr*) &s_servaddr, sizeof(s_servaddr)) <0) {
         perror("main(): erreur sur le bind");
-        close(i_socket_fd);
+        close(i_socketfd);
         exit(-1);
     }
-    printf("main(): socket bindé au descripteur %d\n", i_port);
+    printf("main(): socket bindé à l'adresse serveur, port %d\n", i_port);
+
     // On est en UPD, on n'appelle pas listen()
 
 
-    // paramètres de la socket client
-    struct sockaddr_in s_client;
-    memset(&s_client, 0, sizeof(s_client));
-    socklen_t alen= sizeof(s_client);
-
-
-
 
     /************************************************************************/
-    /*                          2. THREE WAY HANDSHAKE + NOUVELLE SOCKET
+    /*             2. THREE WAY HANDSHAKE + NOUVELLE SOCKET
     /************************************************************************/
 
-    if (three_way_handshake(i_socket_fd, s_client) <0){
+    if (three_way_handshake(i_socketfd, s_cliaddr) <0){
         printf("main(): three_way_handshake pas correctement exécuté\n");
         exit(-1);
     } else {
         printf("main(): three_way_handshake correctement exécuté\n");
     }
 
-    s_address.sin_port= htons(8000);
+    s_servaddr.sin_port= htons(8000);
     // On initalise la nouvelle socket
     int i_socket_new;
     if ( (i_socket_new = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("main(): erreur sur l'ouverture du descripteur");
         exit(-1);
     }
-    setsockopt(i_socket_new, SOL_SOCKET, SO_REUSEADDR, &i_valid, sizeof(int));
+    setsockopt(i_socket_new, SOL_SOCKET, SO_REUSEADDR, &i_1, sizeof(int));
     printf("main(): descripteur de fichier ouvert sur le port %d\n", 8000);
 
-    // On bind le tout
-    if (bind(i_socket_new, (struct sockaddr*) &s_address, sizeof(s_address)) == -1) {
+    // On bind la nouvelle socket avec l'adresse serveur
+    if (bind(i_socket_new, (struct sockaddr*) &s_servaddr, sizeof(s_servaddr)) == -1) {
         perror("main(): erreur sur le bind");
         close(i_socket_new);
         exit(-1);
     }
-    printf("main(): nouvelle socket bindée au descripteur %d\n", 8000);
+    printf("main(): nouvelle socket bindée à l'adresse serveur, port %d\n", 8000);
 
 
 
@@ -117,35 +118,34 @@ int main (int argc, char *argv[]) {
     unsigned char buffer[MAXBUFFER];
     int cwnd = 8192;
 
-    //for(int i=0; i<5; i++) { 
-/*    while(1) {
-       int msg = recvfrom(i_socket_new, buffer, sizeof(buffer), 0,(struct sockaddr*)&s_client, &alen);
-        //sendto(i_socket_fd , buffer, strlen(buffer), 0, (struct sockaddr*)&s_client, alen);
+    // for(int i=0; i<5; i++) { 
+    while(1) {
+       int msg = recvfrom(i_socket_new, buffer, sizeof(buffer), 0,(struct sockaddr*)&s_cliaddr, &t_cliaddrlen);
+        //sendto(i_socketfd , buffer, strlen(buffer), 0, (struct sockaddr*)&s_cliaddr, t_cliaddrlen);
         printf("%s\n", buffer);
-        //s = s*2;
-    } */
+    } 
 
     printf("main(): début du while\n");
     do {
         n = fread(buffer, 1, cwnd, file);
-        printf("%d octets lus\n", n);
+        printf("%d octets lus\n", (int)n);
         if (n) {
             // m = fwrite(buffer, 1, n, file2);
-            m = sendto(i_socket_new, buffer, n, 0, (struct sockaddr*)&s_client, sizeof(s_client));
-            printf("%d octets envoyés\n", m);
+            m = sendto(i_socket_new, buffer, n, 0, (struct sockaddr*)&s_cliaddr, sizeof(s_cliaddr));
+            printf("%d octets envoyés\n", (int)m);
         } else {
             m = 0;
             printf("m = 0\n");
         }
     } while ((n>0) && (n==m));
     if (m) {
-        printf("m=%d\n",m);
+        printf("m=%d\n",(int)m);
         perror("main(): erreur à la fin du while");
     }
         
  
     printf("main(): on ferme les descripteurs\n");
-    close(i_socket_fd);
+    close(i_socketfd);
     close(i_socket_new);
     printf("main(): exit\n");
     return 0;
@@ -155,11 +155,11 @@ int main (int argc, char *argv[]) {
 int three_way_handshake(int socket, struct sockaddr_in adresse) {
     printf("three_way_handshake(): début\n");
 
-    socklen_t alen= sizeof(adresse);
+    socklen_t addrlen= sizeof(adresse);
 
     // on reçoit SYN
     char syn[4] = "   ";
-    if (recvfrom(socket, syn, 3, 0, (struct sockaddr*)&adresse, &alen) <0) {
+    if (recvfrom(socket, syn, 3, 0, (struct sockaddr*)&adresse, &addrlen) <0) {
         perror("three_way_handshake(): SYN non-reçu");
     }
 
@@ -177,7 +177,7 @@ int three_way_handshake(int socket, struct sockaddr_in adresse) {
 
     // si c'est bien envoyé, on doit recevoir ACK
     char ack[4] = "   ";
-    if (recvfrom(socket, ack, 3, 0, (struct sockaddr*)&adresse, &alen) <0) {
+    if (recvfrom(socket, ack, 3, 0, (struct sockaddr*)&adresse, &addrlen) <0) {
         perror("three_way_handshake(): ACK non-reçu");
     } else if (strcmp(ack, "ACK") != 0) {
         printf("three_way_handshake(): problème avec le message reçu (ACK = %s)\n", ack);
