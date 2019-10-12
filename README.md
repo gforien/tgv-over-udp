@@ -1,7 +1,7 @@
-# tcp-over-udp :computer::satellite::globe_iwth_meridians:
+# tcp-over-udp :computer::satellite::globe_with_meridians:
 
-[![PRS TP3](https://img.shields.io/static/v1.svg?label=PRS&message=TP3&color=2aaee6&style=flat)]
-[![License](https://img.shields.io/static/v1.svg?label=License&message=None&color=ff69b4&style=flat)]
+![PRS TP3](https://img.shields.io/static/v1.svg?label=PRS&message=TP3&color=2aaee6&style=flat)
+![License](https://img.shields.io/static/v1.svg?label=License&message=None&color=ff69b4&style=flat)
 #### Using a simple server-client model with UDP sockets, we recreate the TCP algorithm and its mechanisms !
 
 ## :construction_worker: Building and lauching 
