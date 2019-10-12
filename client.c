@@ -106,16 +106,9 @@ int main (int argc, char *argv[]) {
     unsigned char buffer[RCVSIZE];
     // int cwnd = 8192;
 
-    printf("main(): ecris 5 messages pour le serveur\n");
-    for(int i=0; i<5; i++) {
-        fgets(msg, RCVSIZE, stdin);
-        sendto(i_socket_new, msg, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
-        //recvfrom(i_socketfd, blanmsg, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
-        //printf("%s",blanmsg);
-    }
-    printf("main(): fin de la boucle for\n");
-
-
+    printf("main(): on doit envoyer un 1er message au serveur\n");
+    fgets(msg, RCVSIZE, stdin);
+    sendto(i_socket_new, msg, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
 
 /*
     struct timeval tv;
@@ -123,10 +116,10 @@ int main (int argc, char *argv[]) {
     tv.tv_usec = 100000;
     // if (setsockopt(rcv_sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
         perror("Error");
-    }
+    }*/
 
+    printf("main(): début de la boucle while\n");
     do {
-        printf("main(): dans le du while\n");
         n = recvfrom(i_socket_new, buffer, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, &t_servaddrlen);
         printf("%d octets reçus\n", (int)n);
         if (n) {
@@ -142,12 +135,12 @@ int main (int argc, char *argv[]) {
     if (m) {
         printf("m=%d\n",(int)m);
         perror("main(): erreur à la fin du while");
-    }*/
+    }
+    printf("main(): la boucle while s'est bien terminée\n");
 
 
 
-
-    printf("main(): on ferme les descripteurs\n");
+    printf("main(): on ferme les sockets\n");
     close(i_socketfd);
     close(i_socket_new);
     printf("main(): exit\n");

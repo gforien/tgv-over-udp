@@ -118,18 +118,13 @@ int main (int argc, char *argv[]) {
     unsigned char buffer[MAXBUFFER];
     int cwnd = 8192;
 
-    printf("main(): le client va t'envoyer 5 messages\n");
-    for(int i=0; i<5; i++) {
-       int msg = recvfrom(i_socket_new, buffer, sizeof(buffer), 0,(struct sockaddr*)&s_cliaddr, &t_cliaddrlen);
-        //sendto(i_socketfd , buffer, strlen(buffer), 0, (struct sockaddr*)&s_cliaddr, t_cliaddrlen);
 
-       // pas de \n parce que le buffer contient déjà le \n du message
-        printf("%s", buffer);
-    }
-    printf("main(): fin de la boucle for\n");
+    printf("main(): on attend le message pour identifier le client\n");
+    recvfrom(i_socket_new, buffer, sizeof(buffer), 0,(struct sockaddr*)&s_cliaddr, &t_cliaddrlen);
+    printf("%s", buffer);
 
-/*
-    printf("main(): début du while\n");
+
+    printf("main(): début de la boucle while\n");
     do {
         n = fread(buffer, 1, cwnd, file);
         printf("%d octets lus\n", (int)n);
@@ -146,9 +141,11 @@ int main (int argc, char *argv[]) {
         printf("m=%d\n",(int)m);
         perror("main(): erreur à la fin du while");
     }
- */
+    printf("main(): la boucle while s'est bien terminée\n");
 
-    printf("main(): on ferme les descripteurs\n");
+
+
+    printf("main(): on ferme les sockets\n");
     close(i_socketfd);
     close(i_socket_new);
     printf("main(): exit\n");
