@@ -12,7 +12,7 @@ En octobre 2019, leur projet entre à la bourse de New York pour une valeur de *
 Le TGV est maintenant lancé, et il est en passe de conquérir le monde.<br>
 **Montez en voiture, mais faites attention ! Un train peut en cacher un autre :train2:**
 
-## :construction_worker: Building and lauching 
+## :man_pilot: En voiture !
 ```bash
 $ make
 $ ./server 5001
@@ -21,4 +21,5 @@ $ ./client 127.0.0.1 5001
 
 #
 #### Elisa BOUVET - Gabriel FORIEN
+#### Un train peut en cacher un autre
 ![Logo INSA Lyon](https://upload.wikimedia.org/wikipedia/commons/b/b9/Logo_INSA_Lyon_%282014%29.svg)
