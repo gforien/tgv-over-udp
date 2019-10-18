@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 #include "client.h"
 
 #define RCVSIZE 16384
@@ -85,7 +86,7 @@ int main (int argc, char *argv[]) {
     }
 
     // on initialise la nouvelle socket sur le port 8000
-    s_servaddr.sin_port= htons(i_newport);
+    s_servaddr.sin_port = htons(i_newport);
 
     int i_socket_new;
     if ( (i_socket_new = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -97,14 +98,20 @@ int main (int argc, char *argv[]) {
 
     // on ajoute une option timeout à la socket
     struct timeval s_timeout;
-    s_timeout.tv_sec = 5;
+    s_timeout.tv_usec = 100;
+    // s_timeout.tv_sec = 1;
     if (setsockopt(i_socket_new, SOL_SOCKET, SO_RCVTIMEO, &s_timeout, sizeof(s_timeout)) < 0) {
         perror("main(): erreur à l'ajout de l'option timeout");
     }
 
     // on ne bind pas pour le client
 
-
+    // Put the socket in non-blocking mode:
+/*
+    if(fcntl(i_socketfd, F_SETFL, fcntl(i_socketfd, F_GETFL) | O_NONBLOCK) < 0) {
+        perror("main(): erreur à l'ajout de l'option non-bloquante");
+    }
+*/
 
     /************************************************************************/
     /*                          3. RECEPTION DU FICHIER
@@ -116,19 +123,29 @@ int main (int argc, char *argv[]) {
         exit(-1);
     }
 
+    printf("main(): on doit envoyer un 1er message au serveur\n");
+    // fgets(msg, RCVSIZE, stdin);
+    // sendto(i_socket_new, msg, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
+    sendto(i_socket_new, "msg", 4, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
+
+
     size_t n, m;
     unsigned char buffer[RCVSIZE];
-    // int cwnd = 8192;
     unsigned char seq[6];
-
-    printf("main(): on doit envoyer un 1er message au serveur\n");
-    fgets(msg, RCVSIZE, stdin);
-    sendto(i_socket_new, msg, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, sizeof(s_servaddr));
+    int decompte_erreur = 3;
 
     printf("main(): début de la boucle while\n");
     do {
-        n = recvfrom(i_socket_new, buffer, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, &t_servaddrlen);
-        //printf("%d octets reçus\n", (int)n);
+        // permet de dropper un paquet après un certain temps
+        if(decompte_erreur) {
+            n = recvfrom(i_socket_new, buffer, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, &t_servaddrlen);
+            //printf("%d octets reçus\n", (int)n);
+            // decompte_erreur--;
+        } else {
+            n = 0;
+            // scanf("%d", &m);
+        }
+
         if (n) {
             for(int i=0; i<SEQ_SIZE; i++) {
                 seq[i] = buffer[i];
