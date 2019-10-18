@@ -10,6 +10,7 @@
 #include "serveur.h"
 
 #define MAXBUFFER 65535
+#define SEQ_SIZE 6
 
 // ( ! ) dans rcvfrm() il faut bien donner un pointeur vers une variable i = sizeof(adresse)
 //       et non pas la taille elle-même parce qu'on ne la connait pas à l'avance
@@ -120,8 +121,11 @@ int main (int argc, char *argv[]) {
 
     size_t n, m;
     unsigned char buffer[MAXBUFFER];
-    int cwnd = 8192;
+    int cwnd = 16384;
 
+
+    unsigned char seq[SEQ_SIZE] = {0};
+    seq_plus_plus(seq);
 
     printf("main(): on attend le message pour identifier le client\n");
     recvfrom(i_socket_new, buffer, sizeof(buffer), 0,(struct sockaddr*)&s_cliaddr, &t_cliaddrlen);
@@ -130,12 +134,20 @@ int main (int argc, char *argv[]) {
 
     printf("main(): début de la boucle while\n");
     do {
-        n = fread(buffer, 1, cwnd, file);
-        printf("%d octets lus\n", (int)n);
+        // on remplit le buffer avec seq
+        for(int i=0; i<SEQ_SIZE; i++) {
+            buffer[i] = seq[i];
+        }
+
+        n = fread(buffer+SEQ_SIZE, 1, cwnd, file);
+        //printf("%d octets lus\n", (int)n);
         if (n) {
             // m = fwrite(buffer, 1, n, file2);
             m = sendto(i_socket_new, buffer, n, 0, (struct sockaddr*)&s_cliaddr, sizeof(s_cliaddr));
-            printf("%d octets envoyés\n", (int)m);
+            //printf("%d octets envoyés\n", (int)m);
+
+            receive_ack(seq, i_socket_new, s_cliaddr);
+            seq_plus_plus(seq);
         } else {
             m = 0;
             printf("m = 0\n");
@@ -145,7 +157,6 @@ int main (int argc, char *argv[]) {
         printf("m=%d\n",(int)m);
         perror("main(): erreur à la fin du while");
     }
-    printf("main(): la boucle while s'est bien terminée\n");
 
 
     printf("main(): on ferme les sockets\n");
@@ -155,9 +166,65 @@ int main (int argc, char *argv[]) {
     return 0;
 }
 
+void seq_plus_plus(unsigned char seq[]) {
+    //printf("seq_plus_plus(): début\n");
+
+    int retenue = 0;
+    // on vérifie s'il y a une retenue
+    if(seq[SEQ_SIZE-1] == 255 && seq[SEQ_SIZE-1]+1 == 0) {
+        retenue = 1;
+    }
+    seq[SEQ_SIZE-1]++;
+
+    for(int i=SEQ_SIZE-1; i>=0; i--) {
+        if(retenue && seq[i] == 0 && i>0) {
+            // on propage la retenue
+            if(seq[i-1] == 255 && seq[i-1]+1 == 0) {
+                retenue = 1;
+            } else {
+                retenue = 0;
+            }
+            seq[i-1]++;
+        } else if (retenue && seq[i] == 0 && i==0) {
+            printf("seq_plus_plus: (!) (!)  numéro de séquence remis à zéro  (!) (!)");            
+       }
+    }
+
+    char string[] = "ABCDEF";
+    for(int i=0; i<SEQ_SIZE; i++) {
+        string[i] = seq[i]+65;
+    }
+    printf("seq_plus_plus(): %s\n", string);
+}
+
+
+int receive_ack(unsigned char seq_envoye[], int socket, struct sockaddr_in adresse) {
+    //printf("receive_ack(): début\n");
+
+    unsigned char ack_recu[SEQ_SIZE+4] = {0};
+    char ack_recu_en_lettres[] = "ACK_ABCDEF";
+    int verifie = 1;
+
+    socklen_t addrlen= sizeof(adresse);
+    recvfrom(socket, ack_recu, sizeof(ack_recu), 0,(struct sockaddr*)&adresse, &addrlen);
+
+    for(int i=0; i<SEQ_SIZE; i++) {
+        verifie = verifie && (ack_recu[i+4] == seq_envoye[i]);
+        ack_recu_en_lettres[i+4] = ack_recu[i+4]+65;
+    }
+    
+    if(verifie) {
+        printf("receive_ack(): %s reçu\n", ack_recu_en_lettres);
+        return 1;
+    } else {
+        printf("receive_ack(): ERREUR %s\n", ack_recu_en_lettres);
+        return -1;
+    }
+}
+
 
 int three_way_handshake(int socket, struct sockaddr_in adresse) {
-    printf("three_way_handshake(): début\n");
+    //printf("three_way_handshake(): début\n");
 
     socklen_t addrlen= sizeof(adresse);
 
@@ -187,6 +254,6 @@ int three_way_handshake(int socket, struct sockaddr_in adresse) {
         printf("three_way_handshake(): problème avec le message reçu (ACK = %s)\n", ack);
     }
 
-    printf("three_way_handshake(): return 0\n");
+    //printf("three_way_handshake(): return 0\n");
     return 0;
 }

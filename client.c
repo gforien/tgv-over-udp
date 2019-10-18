@@ -9,7 +9,9 @@
 #include <netinet/in.h>
 #include "client.h"
 
-#define RCVSIZE 8192
+#define RCVSIZE 16384
+#define MAXBUFFER 65535
+#define SEQ_SIZE 6
 
 // ( ! ) dans rcvfrm() il faut bien donner un pointeur vers une variable i = sizeof(s_servaddr)
 //       et non pas la taille elle-même parce qu'on ne la connait pas à l'avance
@@ -117,6 +119,7 @@ int main (int argc, char *argv[]) {
     size_t n, m;
     unsigned char buffer[RCVSIZE];
     // int cwnd = 8192;
+    unsigned char seq[6];
 
     printf("main(): on doit envoyer un 1er message au serveur\n");
     fgets(msg, RCVSIZE, stdin);
@@ -125,10 +128,15 @@ int main (int argc, char *argv[]) {
     printf("main(): début de la boucle while\n");
     do {
         n = recvfrom(i_socket_new, buffer, RCVSIZE, 0, (struct sockaddr*)&s_servaddr, &t_servaddrlen);
-        printf("%d octets reçus\n", (int)n);
+        //printf("%d octets reçus\n", (int)n);
         if (n) {
-            m = fwrite(buffer, 1, n, file);
-            printf("%d octets écrits\n", (int)m);
+            for(int i=0; i<SEQ_SIZE; i++) {
+                seq[i] = buffer[i];
+            }
+            m = fwrite(buffer+SEQ_SIZE, 1, n, file);
+            //printf("%d octets écrits\n", (int)m);
+
+            acknowledge(seq, i_socket_new, s_servaddr);
         } else {
             m = 0;
             printf("m = 0\n");
@@ -140,8 +148,6 @@ int main (int argc, char *argv[]) {
         printf("m=%d\n",(int)m);
         perror("main(): erreur à la fin du while");
     }
-    printf("main(): la boucle while s'est bien terminée\n");
-
 
 
     printf("main(): on ferme les sockets\n");
@@ -149,6 +155,19 @@ int main (int argc, char *argv[]) {
     close(i_socket_new);
     printf("main(): exit\n");
     return 0;
+}
+
+
+void acknowledge(unsigned char seq_recu[], int socket, struct sockaddr_in adresse) {
+    unsigned char ack[SEQ_SIZE+4] = "ACK_";
+    char ack_en_lettres[] = "ACK_ABCDEF";
+
+    for(int i=0; i<SEQ_SIZE; i++) {
+        ack[i+4] = seq_recu[i];
+        ack_en_lettres[i+4] = seq_recu[i]+65;
+    }
+    sendto(socket, ack, sizeof(ack), 0, (struct sockaddr*)&adresse, sizeof(adresse));
+    printf("acknowledge(): %s envoyé\n", ack_en_lettres);
 }
 
 
