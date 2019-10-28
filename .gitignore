@@ -1,3 +1,2 @@
-13Mofile
-fichierRECU
-*.class
+bin/*.class
+res/fichierRECU
