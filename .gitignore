@@ -1,2 +1,2 @@
-bin/*.class
-res/fichierRECU
+*.class
+*fichierRECU
