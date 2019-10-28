@@ -1,19 +1,18 @@
-BINARY=client serveur
-FLAGS= -Wall -Wextra -pedantic -std=c11
+JFLAGS = -g
+JC = javac
+.SUFFIXES: .java .class
+.java.class:
+	javac $(JFLAGS) $*.java
 
-all: $(BINARY)
+CLASSES = \
+	Foo.java \
+	Blah.java \
+	Library.java \
+	Main.java 
 
-serveur: serveur.o
-	gcc $(FLAGS) $^ -o serveur
+default: classes
 
-
-client: client.o
-	gcc $(FLAGS) $^ -o client
-
-%.o: %.c
-	gcc -c $<
+classes: $(CLASSES:.java=.class)
 
 clean:
-	rm -f $(BINARY) *.o
-
-rebuild: clean all
+	rm *.class
