@@ -1,6 +1,7 @@
 package com.ebgf.TGVOverUDP;
 
 import java.io.*;
+import java.util.*;
 
 public class Test {
 
@@ -9,8 +10,7 @@ public class Test {
         try {
 
             int port = Integer.parseInt(args[0]);
-
-            Thread t = new Thread(new Test.ThreadMere(port), "MERE :"+String.valueOf(port));
+            Thread t = new Thread(new Test.ThreadMere(port), "MERE");
             t.start();
 
         } catch (NumberFormatException err) {
@@ -28,41 +28,39 @@ public class Test {
     public static class ThreadMere extends Serveur {
 
         public int portDedie = 1234;
+        ArrayList<Thread> arrayFils = new ArrayList<Thread>();
 
         public ThreadMere(int port) throws IOException {
             super(port);
-            this.debugLevel = 1;
-        }
-
-        @Override
-        public void initConnection() throws Exception {
-            // three-way handshake
-            initRecu(3);                // on reçoit SYN ou ACK -> 3 caractères
-            recoitBloquant();
-            verifieRecu("SYN");
-
-            initClientApresRecu();      // après avoir reçu un message on a bien les infos du client
-
-            /*bufferEnvoi = new byte[]{'S', 'Y', 'N', '-', 'A', 'C', 'K', '3', '0', '0', '0'};
-            packetEnvoi = new DatagramPacket(bufferEnvoi, bufferEnvoi.length);*/
-
-            initEnvoiChaine("SYN-ACK"+String.valueOf(portDedie));
-            this.portDedie++;
-            envoiBloquant();
-            System.out.println("SYN-ACK envoyé");
-
-            recoitBloquant();
-            verifieRecu("ACK");
+            this.debugColor = BLEU;
         }
 
         @Override
         public void run() {
+            Thread fils;
+
             try {
                 while(true) {
-                    initConnection();
-                    System.out.println(this.retard);
 
+                    log(2, "<<three-way handshake>>");
+                    initRecu(3);                // on reçoit SYN ou ACK -> 3 caractères
+                    recoitBloquant();
+                    verifieRecu("SYN");
 
+                    initClientApresRecu();      // après avoir reçu un message on a bien les infos du client
+
+                    initEnvoiChaine("SYN-ACK"+String.valueOf(this.portDedie));
+                    envoiBloquant();
+
+                    //recoitBloquant();
+                    //verifieRecu("ACK");
+                    log(2, "three-way handshake sans ACK terminé avec succès");
+
+                    fils = new Thread(new Test.ThreadFils(this.portDedie), "fils-"+String.valueOf(this.portDedie));
+                    fils.start();
+                    arrayFils.add(fils);
+                    log(2, "fils lancé");
+                    this.portDedie++;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -75,28 +73,34 @@ public class Test {
     public static class ThreadFils extends Serveur {
         public ThreadFils(int port) throws IOException {
             super(port);
+            this.debugColor = VERT;
         }
 
         @Override
-        public void initConnection() throws IOException, FileNotFoundException {
-
-            // on reçoit un nom de fichier d'une taille quelconque
-            initRecu(1000);
-            recoitBloquant();
-            initClientApresRecu();
-
-            System.out.println("Fichier requis: "+new String(bufferRecu, "UTF-8"));
-            this.fluxFichier = new BufferedInputStream(new FileInputStream(new String(bufferRecu, "UTF-8")));
+        public void log(String message) {
+            log(1, message, this.debugColor);
         }
 
         @Override
         public void run() {
+            String nomFichier;
             try {
-                initConnection();
+                // on reçoit un nom de fichier d'une taille quelconque
+                log(2, "Début de la communication");
+                initRecu(1000);
+                recoitBloquant();
+                initClientApresRecu();
 
+                nomFichier = new String(bufferRecu, "UTF-8");
+                log(2, "Fichier demandé: "+nomFichier);
+                this.fluxFichier = new BufferedInputStream(new FileInputStream(nomFichier));
+
+                log(2, "Envoi du fichier");
+                this.debugLevel = 5;
                 while(initEnvoiFichier() != -1) {
                     envoiBloquant();
                 }
+                this.debugLevel = 1;
 
                 initEnvoiChaine("FIN");
                 envoiBloquant();

@@ -10,7 +10,7 @@ public abstract class Serveur implements Runnable {
 
     public static final String RESET  = "\033[0m";
     public static final String NOIR   = "\033[1;30m";
-    public static final String ROUGE  = "\033[1;31m";
+    public static final String ROUGE  = "\033[4;31m";
     public static final String VERT   = "\033[1;32m";
     public static final String JAUNE  = "\033[1;33m";
     public static final String BLEU   = "\033[1;34m";
@@ -19,8 +19,7 @@ public abstract class Serveur implements Runnable {
     public static final String BLANC  = "\033[1;37m";
 
     public int debugLevel = 1;
-    public String debugColog = BLANC;
-    public long retard;
+    public String debugColor = BLANC;
 
     // attributs du serveur : définis par le constructeur
     protected int port;
@@ -48,7 +47,6 @@ public abstract class Serveur implements Runnable {
     /******************************************************************************/
     //                   Méthodes à redéfinir selon le comportement voulu
     //
-                        public abstract void initConnection() throws Exception;
                         public abstract void run();
     //
     /******************************************************************************/
@@ -66,7 +64,6 @@ public abstract class Serveur implements Runnable {
     public void log(int level, String msg, String couleur) {
         if(level < this.debugLevel)
             return;
-        long start = System.currentTimeMillis();
 
         StringBuffer sb = new StringBuffer(100);
         String t = Thread.currentThread().getName();
@@ -76,16 +73,17 @@ public abstract class Serveur implements Runnable {
         for (int i=sb.length(); i<35; i++) sb.append(" ");
 
         System.out.println( couleur + sb + msg + RESET);
-        this.retard += System.currentTimeMillis()-start;
     }
     public void log(int level, String msg) {
-        if (level>1)
+        if (level==2)
+            log(level, msg, this.debugColor);
+        else if (level==3)
             log(level, msg, ROUGE);
         else
-            log(level, msg, this.debugColog);
+            log(level, msg, BLANC);
     }
     public void log(String msg) {
-        log(1, msg, this.debugColog);
+        log(1, msg, BLANC);
     }
     public void log(String msg, String couleur) {
         log(1, msg, couleur);
@@ -98,6 +96,7 @@ public abstract class Serveur implements Runnable {
         this.portClient = this.packetRecu.getPort();
         log("client "+this.addrClient.toString()+":"+this.portClient);
 
+        // on doit initialise bufferEnvoi avec une taille arbitraire uniquement pour initialiser packetEnvoi
         this.bufferEnvoi = new byte[2000];
         this.packetEnvoi = new DatagramPacket(bufferEnvoi, bufferEnvoi.length, this.addrClient, this.portClient);
         log("");
@@ -161,7 +160,8 @@ public abstract class Serveur implements Runnable {
         log("messageAttendu = "+messageAttendu);
         String messageRecu = new String(this.bufferRecu, "UTF-8");
         if (!messageAttendu.equals(messageRecu)) {
-            throw new Exception("verifieRecu(): message recu '"+messageRecu+"' au lieu du message attendu '"+messageAttendu+"'");
+            log(2, "verifieRecu(): message recu '"+messageRecu+"' au lieu du message attendu '"+messageAttendu+"'");
+            throw new Exception();
         }
         log("");
     }
@@ -174,6 +174,7 @@ public abstract class Serveur implements Runnable {
             seqChar[i] = (char)(ackAVerifier %10);
             ackAVerifier /= 10;
         }
+        log(1, "appel base avec seq="+new String(seqChar));
         verifieRecu("ACK"+new String(seqChar));
         log("");
     }
