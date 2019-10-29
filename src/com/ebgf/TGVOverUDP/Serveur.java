@@ -3,88 +3,130 @@ package com.ebgf.TGVOverUDP;
 import java.net.*;
 import java.io.*;
 
-public class Serveur {
+public abstract class Serveur implements Runnable {
 
-    public static final int BUFFSIZE = 8192;
+    public static final int MAXBUFFSIZE = 8192;
+    public static final int NBYTESEQ = 6;
 
-    // Variables de l'instance mère
-    protected int portPublic;
-    protected int connectionsMax;
-    protected ServerSocket socketMere;
+    // attributs du serveur : définis par le constructeur
+    protected int port;
+    protected DatagramSocket socket;
 
-    // Variables des instances dédiées
-    // elles doivent être ouvertes et fermées pour chaque client
-    protected Socket client;
-    protected int portDedie;
-    protected String fichierDemande;
-    protected BufferedInputStream bis;
-    protected BufferedOutputStream bos;
-    protected byte[] buffer;
+    // attributs du clients : définis par initClientApresRecu()
+    protected int portClient;
+    protected InetAddress addrClient;
+
+    // re-définis chaque fois que c'est nécessaire par initRecu() et initEnvoi()
+    protected byte[] bufferRecu;
+    protected byte[] bufferEnvoi;
+    protected DatagramPacket packetRecu;
+    protected DatagramPacket packetEnvoi;
+
+    // fonctionnalités supplémentaires : ACK, n° seq, envoi de fichier
+    protected int dernierACKRecu;
+    protected int seq;
+    protected boolean fichierEnCours;
+    protected String nomFichier;
+    protected BufferedInputStream fluxFichier;
 
 
-    public Serveur(int i, int i2) throws IOException {
-        this.portPublic = i;
-        this.connectionsMax = i2;
-        this.socketMere = new ServerSocket(portPublic, connectionsMax);
+
+    /******************************************************************************/
+    //                   Méthodes à redéfinir selon le comportement voulu
+    //
+                        public abstract void initConnection();
+                        public abstract void run();
+    //
+    /******************************************************************************/
+
+
+
+    public Serveur(int port) throws IOException {
+        this.port = port;
+        this.socket = new DatagramSocket(this.port);
     }
 
 
-    public void threeWayHandshake() {
-        // on reçoit SYN sur le port public
-        // on envoie SYN-ACK9999
-        // on reçoit ACK sur le port public
-        // on reçoit "13MoFile" sur son port dédié
-        byte[] syn = new byte[3];
-        byte[] synack = {'S', 'Y', 'N', '-', 'A', 'C', 'K', '3', '0', '0', '0'};
-        byte[] ack = new byte[3];
-
-        int n = 0;
-        try {
-            System.out.println("Waiting for client...");
-            client = this.socketMere.accept();
-            System.out.println("Client accepted !");
-            bis = new BufferedInputStream(client.getInputStream());
-            bos = new BufferedOutputStream(client.getOutputStream());
-
-            if ((n = bis.read(syn)) != 3) {
-                System.out.println("threeWayHandshake(): erreur au SYN !");
-            }
-            bos.write(synack);
-            if ((n = bis.read(syn)) != 3) {
-                System.out.println("threeWayHandshake(): erreur au ACK !");
-            }
-
-            bis.close();
-            bos.close();
-        }
-        catch (IOException err) {
-            err.printStackTrace();
-        }
-        finally {
-        }
-
-        // chaque message envoyé commence par 123456
-        // le client acquitte avec ACK123456 sur son port dédié
-
-        // à la fin du transfert, le client attend un FIN
+    protected void initClientApresRecu() throws IOException {
+        this.addrClient = this.packetRecu.getAddress();
+        this.portClient = this.packetRecu.getPort();
+        this.packetEnvoi.setAddress(this.addrClient);
+        this.packetEnvoi.setPort(this.portClient);
     }
 
-    public void sendFile(Socket clientSocket, String filename) {
-        // protected Socket         cs = ss.accept();
-        byte[] buffer = new byte[BUFFSIZE];
 
-        try(
-            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(filename));
-            BufferedOutputStream bos = new BufferedOutputStream(clientSocket.getOutputStream());
-        ){
-            while( bis.read(buffer) != -1 ) {
-                bos.write(buffer);
-            }
-        } catch (FileNotFoundException err) {
-            System.out.println("Fichier non trouve !");
-            err.printStackTrace();
-        } catch (IOException err) {
-            err.printStackTrace();
+
+
+
+    // on se prépare à recevoir n bytes dans bufferRecu
+    protected void initRecu(int tailleByte) {
+        this.bufferRecu = new byte[tailleByte];
+        this.packetRecu = new DatagramPacket(this.bufferRecu, this.bufferRecu.length);
+    }
+
+    protected void initEnvoi(boolean avecNumSeq, boolean envoiFichier, String messageOuNomFichier) throws FileNotFoundException, IOException{
+
+        // (1) on définit la taille du message
+        int tailleByte;
+        if (envoiFichier) {
+            tailleByte = (avecNumSeq)? MAXBUFFSIZE-NBYTESEQ: MAXBUFFSIZE;
+        } else {
+            tailleByte = (avecNumSeq)? messageOuNomFichier.length()+NBYTESEQ: messageOuNomFichier.length();
         }
+        this.bufferEnvoi = new byte[tailleByte];
+        this.packetEnvoi.setLength(this.bufferEnvoi.length);
+
+        // (2) on remplit les NBYTESEQ premiers bytes avec seq, si besoin
+        int offset = 0;
+        if (avecNumSeq) {
+            /*int puissance = 0;
+            int seq2 = this.seq;
+            while ((seq2/=10) != 0) puissance++;*/
+            int seq2 = 1234;
+            for (int i=NBYTESEQ-1; i>=0; i--) {
+                bufferEnvoi[i] = (byte)(seq2 %10);
+                seq2 /= 10;
+                System.out.println(bufferEnvoi[i]);
+            }
+            offset = NBYTESEQ-1;
+        }
+
+        // (3) on charge le contenu
+        if (envoiFichier && this.fichierEnCours) {
+            fluxFichier.read(bufferEnvoi, offset, bufferEnvoi.length-offset);
+        } else {
+            for (int i=0; i<messageOuNomFichier.length(); i++) {
+                bufferEnvoi[offset+i] = (byte)(messageOuNomFichier.charAt(i));
+            }
+        }
+    }
+
+
+
+    protected void recoitBloquant() throws IOException {
+        this.socket.receive(this.packetRecu);
+    }
+
+    protected void envoiBloquant() throws IOException {
+        this.socket.send(this.packetEnvoi);
+    }
+
+    // on compare bufferRecu au message qu'on était censés recevoir: s'ils ne sont pas identiques on lève une exception
+    protected void verifieRecu(String messageAttendu) throws Exception {
+        String messageRecu = new String(this.bufferRecu, "UTF-8");
+        if (!messageAttendu.equals(messageRecu)) {
+            throw new Exception("verifieRecu(): message recu '"+messageRecu+"' au lieu du message attendu '"+messageAttendu+"'");
+        }
+    }
+
+    // surcharge
+    protected void verifieRecu(int ackAVerifier) throws Exception {
+        char[] seqChar = new char[NBYTESEQ];
+        for (int i=NBYTESEQ-1; i>=0; i--) {
+            seqChar[i] = (char)(ackAVerifier %10);
+            ackAVerifier /= 10;
+            System.out.println(seqChar[i]);
+        }
+        verifieRecu("ACK"+new String(seqChar));
     }
 }
