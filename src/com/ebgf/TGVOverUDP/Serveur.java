@@ -126,20 +126,23 @@ public abstract class Serveur implements Runnable {
     protected int initEnvoiFichier() throws IOException {
         log("");
         this.bufferEnvoi = new byte[MAXBUFFSIZE-NBYTESEQ];
-        this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length);
+        this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
 
         // on remplit les 6 premiers octets du buffer
         int offset = NBYTESEQ-1;
         int seq2 = this.seq;
-        log(2, "seq = "+this.seq);
+        log("seq = "+this.seq);
         for (int i=offset; i>=0; i--) {
             this.bufferEnvoi[i] = (byte)(seq2 %10);
             seq2 /= 10;
-            log(1, "seq[] = "+String.valueOf((int)this.bufferEnvoi[i]), VERT);
+            log("seq[] = "+String.valueOf((int)this.bufferEnvoi[i]));
         }
+        seq++;
 
+        int n = fluxFichier.read(this.bufferEnvoi, offset, this.bufferEnvoi.length-offset);
+        log(n+" bytes lus");
         log("");
-        return fluxFichier.read(this.bufferEnvoi, offset, this.bufferEnvoi.length-offset);
+        return n;
     }
 
 

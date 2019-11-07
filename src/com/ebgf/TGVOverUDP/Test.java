@@ -10,8 +10,8 @@ public class Test {
         try {
 
             int port = Integer.parseInt(args[0]);
-//            (new Thread(new Test.ThreadMere(port), "MERE")).start();
-            (new Thread(new Test.ThreadFils(port), "fils-"+port)).start();
+            (new Thread(new Test.ThreadMere(port), "MERE")).start();
+            // (new Thread(new Test.ThreadFils(port), "fils-"+port)).start();
 
         } catch (NumberFormatException err) {
             System.out.println("usage: ./server server_port");
@@ -83,6 +83,7 @@ public class Test {
         @Override
         public void run() {
             String nomFichier;
+
             try {
                 // on reçoit un nom de fichier d'une taille quelconque
                 log(2, "Début de la communication");
@@ -93,9 +94,10 @@ public class Test {
                 nomFichier = (new String(bufferRecu, "UTF-8")).trim();
                 log(2, "Fichier demandé: "+nomFichier);
                 // (!)   le fichier doit exister dans le classpath ./bin   (!)
-                this.fluxFichier = new BufferedInputStream(Test.class.getResourceAsStream(nomFichier));
+                this.fluxFichier = new BufferedInputStream(new FileInputStream("./bin/"+nomFichier));
 
                 log(2, "Envoi du fichier");
+                this.debugLevel = 2;
                 while(initEnvoiFichier() != -1) {
                     envoiBloquant();
                 }
