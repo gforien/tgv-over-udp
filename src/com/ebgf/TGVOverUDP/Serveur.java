@@ -123,17 +123,19 @@ public abstract class Serveur implements Runnable {
     }
 
     // attention, on doit avoir défini fluxfichier !
-    protected int initEnvoiFichier() throws IOException{
+    protected int initEnvoiFichier() throws IOException {
         log("");
         this.bufferEnvoi = new byte[MAXBUFFSIZE-NBYTESEQ];
-        this.packetEnvoi.setLength(this.bufferEnvoi.length);
+        this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length);
 
+        // on remplit les 6 premiers octets du buffer
         int offset = NBYTESEQ-1;
         int seq2 = this.seq;
+        log(2, "seq = "+this.seq);
         for (int i=offset; i>=0; i--) {
             this.bufferEnvoi[i] = (byte)(seq2 %10);
             seq2 /= 10;
-            log(1, "initEnvoiFichier(): "+String.valueOf((char)this.bufferEnvoi[i]), VERT);
+            log(1, "seq[] = "+String.valueOf((int)this.bufferEnvoi[i]), VERT);
         }
 
         log("");

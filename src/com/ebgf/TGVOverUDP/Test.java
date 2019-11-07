@@ -10,8 +10,8 @@ public class Test {
         try {
 
             int port = Integer.parseInt(args[0]);
-            Thread t = new Thread(new Test.ThreadMere(port), "MERE");
-            t.start();
+//            (new Thread(new Test.ThreadMere(port), "MERE")).start();
+            (new Thread(new Test.ThreadFils(port), "fils-"+port)).start();
 
         } catch (NumberFormatException err) {
             System.out.println("usage: ./server server_port");
@@ -32,7 +32,7 @@ public class Test {
 
         public ThreadMere(int port) throws IOException {
             super(port);
-            this.debugColor = BLEU;
+            this.debugColor = VIOLET;
             this.debugLevel = 2;
         }
 
@@ -43,24 +43,26 @@ public class Test {
             try {
                 while(true) {
 
-                    log(2, "<<three-way handshake>>");
+                    log(2, "<< three-way handshake >>");
                     initRecu(3);                // on reçoit SYN ou ACK -> 3 caractères
                     recoitBloquant();
                     verifieRecu("SYN");
+                    log(2, "SYN reçu");
 
                     initClientApresRecu();      // après avoir reçu un message on a bien les infos du client
 
                     initEnvoiChaine("SYN-ACK"+String.valueOf(this.portDedie));
                     envoiBloquant();
+                    log(2, "SYN-ACK"+String.valueOf(this.portDedie)+" envoyé");
 
-                    //recoitBloquant();
-                    //verifieRecu("ACK");
-                    log(2, "three-way handshake sans ACK terminé avec succès");
+                    recoitBloquant();
+                    verifieRecu("ACK");
+                    log(2, "three-way handshake réussi");
 
                     fils = new Thread(new Test.ThreadFils(this.portDedie), "fils-"+String.valueOf(this.portDedie));
                     fils.start();
                     arrayFils.add(fils);
-                    log(2, "fils lancé");
+                    log(2, "-> fils lancé");
                     this.portDedie++;
                 }
             } catch (Exception e) {
@@ -74,7 +76,7 @@ public class Test {
     public static class ThreadFils extends Serveur {
         public ThreadFils(int port) throws IOException {
             super(port);
-            this.debugColor = VERT;
+            this.debugColor = CYAN;
             this.debugLevel = 1;
         }
 
@@ -88,12 +90,12 @@ public class Test {
                 recoitBloquant();
                 initClientApresRecu();
 
-                nomFichier = new String(bufferRecu, "UTF-8");
+                nomFichier = (new String(bufferRecu, "UTF-8")).trim();
                 log(2, "Fichier demandé: "+nomFichier);
-                this.fluxFichier = new BufferedInputStream(new FileInputStream(nomFichier));
+                // (!)   le fichier doit exister dans le classpath ./bin   (!)
+                this.fluxFichier = new BufferedInputStream(Test.class.getResourceAsStream(nomFichier));
 
                 log(2, "Envoi du fichier");
-                this.debugLevel = 5;
                 while(initEnvoiFichier() != -1) {
                     envoiBloquant();
                 }
@@ -102,6 +104,7 @@ public class Test {
                 initEnvoiChaine("FIN");
                 envoiBloquant();
             } catch (Exception e) {
+                e.printStackTrace();
                 return;
             }
         }
