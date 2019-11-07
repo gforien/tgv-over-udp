@@ -10,8 +10,8 @@ public class Test {
         try {
 
             int port = Integer.parseInt(args[0]);
-            (new Thread(new Test.ThreadMere(port), "MERE")).start();
-            // (new Thread(new Test.ThreadFils(port), "fils-"+port)).start();
+            // (new Thread(new Test.ThreadMere(port), "MERE")).start();
+            (new Thread(new Test.ThreadFils(port), "fils-"+port)).start();
 
         } catch (NumberFormatException err) {
             System.out.println("usage: ./server server_port");
@@ -97,9 +97,12 @@ public class Test {
                 this.fluxFichier = new BufferedInputStream(new FileInputStream("./bin/"+nomFichier));
 
                 log(2, "Envoi du fichier");
-                this.debugLevel = 2;
+                // this.debugLevel = 2;
                 while(initEnvoiFichier() != -1) {
                     envoiBloquant();
+                    initRecu(9);
+                    recoitBloquant();
+                    verifieRecu(this.seq);
                 }
                 this.debugLevel = 1;
 
@@ -114,55 +117,3 @@ public class Test {
 
 }
 
-
-
-/*
-
-a implémenter
-
-b & 0xFF
-
-    
-    // Variables utiles
-    protected String nomFichier;
-    protected BufferedInputStream fichier;
-    protected InetAddress addrClient;
-    protected int portClient;
-    
-    protected byte[] ack;
-    protected byte[] buffer;
-
-    public ServeurDedie(int i) throws IOException, FileNotFoundException {
-        super(i);
-
-        // on capte le fichier demandé
-        byte[] fichierDemande = new byte[1000];
-        packetRecu            = new DatagramPacket(fichierDemande, fichierDemande.length);
-        // IOException
-        socket.receive(packetRecu);
-
-        addrClient = packetRecu.getAddress();
-        portClient = packetRecu.getPort();
-        nomFichier = new String(fichierDemande, "UTF-8");
-
-        System.out.println("Fichier requis: "+nomFichier);
-        // FileNotFoundException
-        fichier = new BufferedInputStream(new FileInputStream(nomFichier));
-            // si c'est le première fois qu'on appelle initEnvoi() pour ce fichier, il faut ouvrir le fichier
-            if (!this.fichierEnCours) {
-                this.fichierEnCours = true;
-                this.nomFichier = messageOuNomFichier;
-                this.fluxFichier = new BufferedInputStream(new FileInputStream(this.nomFichier));
-            }
-
-
-        // on prépare la transmission en connaissant le client
-        buffer      = new byte[MAXBUFFSIZE];
-        packetEnvoi = new DatagramPacket(buffer, MAXBUFFSIZE, addrClient, portClient);
-        ack         = new byte[3];
-        packetRecu  = new DatagramPacket(ack, ack.length);
-
-                    while( bis.read(buffer) != -1 ) {
-                bos.write(buffer);
-    }
-*/

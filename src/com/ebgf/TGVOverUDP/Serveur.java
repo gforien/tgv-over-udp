@@ -122,7 +122,6 @@ public abstract class Serveur implements Runnable {
         log("");
     }
 
-    // attention, on doit avoir défini fluxfichier !
     protected int initEnvoiFichier() throws IOException {
         log("");
         this.bufferEnvoi = new byte[MAXBUFFSIZE-NBYTESEQ];
@@ -130,6 +129,7 @@ public abstract class Serveur implements Runnable {
 
         // on remplit les 6 premiers octets du buffer
         int offset = NBYTESEQ-1;
+        this.seq++;
         int seq2 = this.seq;
         log("seq = "+this.seq);
         for (int i=offset; i>=0; i--) {
@@ -137,8 +137,8 @@ public abstract class Serveur implements Runnable {
             seq2 /= 10;
             log("seq[] = "+String.valueOf((int)this.bufferEnvoi[i]));
         }
-        seq++;
 
+        // (!)  on doit avoir défini fluxfichier  (!)
         int n = fluxFichier.read(this.bufferEnvoi, offset, this.bufferEnvoi.length-offset);
         log(n+" bytes lus");
         log("");
@@ -167,6 +167,8 @@ public abstract class Serveur implements Runnable {
         if (!messageAttendu.equals(messageRecu)) {
             log(2, "verifieRecu(): message recu '"+messageRecu+"' au lieu du message attendu '"+messageAttendu+"'");
             throw new Exception();
+        } else {
+            log("message vérifié");
         }
         log("");
     }
@@ -174,13 +176,12 @@ public abstract class Serveur implements Runnable {
     // surcharge
     protected void verifieRecu(int ackAVerifier) throws Exception {
         log("ackAVerifier = "+ackAVerifier);
-        char[] seqChar = new char[NBYTESEQ];
-        for (int i=NBYTESEQ-1; i>=0; i--) {
-            seqChar[i] = (char)(ackAVerifier %10);
-            ackAVerifier /= 10;
+        String s = String.valueOf(ackAVerifier);
+        while (s.length() < NBYTESEQ) {
+            s = new String("0"+s);
+            log(2, "s = "+s);
         }
-        log(1, "appel base avec seq="+new String(seqChar));
-        verifieRecu("ACK"+new String(seqChar));
+        verifieRecu("ACK"+s);
         log("");
     }
 }
