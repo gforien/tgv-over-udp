@@ -15,10 +15,18 @@ Le TGV est maintenant lancé, et il est en passe de conquérir le monde.<br>
 ![Logo](logo.png)
 
 ## :man_pilot: En voiture !
+En environnement de test :
 ```bash
-$ make
-$ ./server 5001
-$ ./client 127.0.0.1 5001
+$ make -f src/Makefile
+$ java -cp bin com.ebgf.TGVOverUDP.Test 1234
+$ ./bin/client2 127.0.0.1 2000 bin/13Mofile
+```
+
+En environnement de production :
+```bash
+$ make -f src/Makefile
+$ ./bin/serveur1-TGVOverUDP 2000
+$ ./bin/client1 127.0.0.1 2000 bin/file
 ```
 
 #

@@ -27,12 +27,13 @@ public class Test {
 /******************************************************************************************/
     public static class ThreadMere extends Serveur {
 
-        public int portDedie = 1234;
+        public int portDedie = 4983;
         ArrayList<Thread> arrayFils = new ArrayList<Thread>();
 
         public ThreadMere(int port) throws IOException {
             super(port);
             this.debugColor = BLEU;
+            this.debugLevel = 2;
         }
 
         @Override
@@ -74,11 +75,7 @@ public class Test {
         public ThreadFils(int port) throws IOException {
             super(port);
             this.debugColor = VERT;
-        }
-
-        @Override
-        public void log(String message) {
-            log(1, message, this.debugColor);
+            this.debugLevel = 1;
         }
 
         @Override
