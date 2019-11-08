@@ -23,6 +23,7 @@ public abstract class Serveur implements Runnable {
 
     // attributs du serveur : définis par le constructeur
     protected int port;
+    protected String ip;
     protected DatagramSocket socket;
 
     // attributs du clients : définis par initClientApresRecu()
@@ -47,6 +48,7 @@ public abstract class Serveur implements Runnable {
     public Serveur(int port, String ip) throws IOException, UnknownHostException {
         log("ip = "+ip+" port = "+port);
         this.port   = port;
+        this.ip     = ip;
         this.socket = (ip == null)? new DatagramSocket(this.port): new DatagramSocket(this.port, InetAddress.getByName(ip));
         log("");
     }
@@ -94,10 +96,12 @@ public abstract class Serveur implements Runnable {
     // on compare bufferRecu au message qu'on était censés recevoir: s'ils ne sont pas identiques on lève une exception
     protected void verifieRecu(String messageAttendu) throws Exception {
         log("messageAttendu = "+messageAttendu);
-        String messageRecu = new String(this.bufferRecu, "UTF-8");
+        String messageRecu = (new String(this.bufferRecu, "UTF-8")).trim();
         if (!messageAttendu.equals(messageRecu)) {
             log(2, "verifieRecu(): message recu '"+messageRecu+"' au lieu du message attendu '"+messageAttendu+"'");
-            throw new Exception();
+
+            int s = Integer.parseInt(messageRecu.substring(3));
+            throw new Exception(messageRecu.substring(3));
         } else {
             log("message vérifié");
         }
@@ -111,7 +115,6 @@ public abstract class Serveur implements Runnable {
         String s = String.valueOf(ackAVerifier);
         while (s.length() < NBYTESEQ) {
             s = new String("0"+s);
-            log(2, "s = "+s);
         }
         verifieRecu("ACK"+s);
         log("");
