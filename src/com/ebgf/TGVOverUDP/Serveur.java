@@ -5,9 +5,10 @@ import java.io.*;
 
 public abstract class Serveur implements Runnable {
 
-    public static final int MAXBUFFSIZE = 8192;
-    public static final int NBYTESEQ    = 6;
+    // le nombre de bytes du numéro de sequence au début de chaque paquet
+    public static final int NBYTESEQ  = 6;
 
+    // codes ASCII pour afficher en couleur dans le terminal
     public static final String RESET  = "\033[0m";
     public static final String NOIR   = "\033[1;30m";
     public static final String ROUGE  = "\033[4;31m";
@@ -26,7 +27,7 @@ public abstract class Serveur implements Runnable {
     protected String ip;
     protected DatagramSocket socket;
 
-    // attributs du clients : définis par initClientApresRecu()
+    // attributs du client  : définis par initClientApresRecu()
     protected int portClient;
     protected InetAddress addrClient;
 
@@ -38,12 +39,10 @@ public abstract class Serveur implements Runnable {
 
 
 
-    /******************************************************************************/
-    //                   Méthodes à redéfinir selon le comportement voulu
-    //
-                        public abstract void run();
-    //
-    /******************************************************************************/
+    /***********************************************************************************************/
+    //  (1) Définition générale de l'objet Serveur
+    /***********************************************************************************************/
+    public abstract void run();
 
     public Serveur(int port, String ip) throws IOException, UnknownHostException {
         log("ip = "+ip+" port = "+port);
@@ -55,84 +54,6 @@ public abstract class Serveur implements Runnable {
     public Serveur(int port) throws IOException, UnknownHostException {
         this(port, null);
     }
-
-
-    // on se prépare à recevoir n bytes dans bufferRecu
-    protected void initRecu(int tailleByte) {
-        log("tailleByte = "+tailleByte);
-        this.bufferRecu = new byte[tailleByte];
-        this.packetRecu = new DatagramPacket(this.bufferRecu, this.bufferRecu.length);
-        log("");
-    }
-
-    protected void initEnvoiChaine(String message) {
-        log("msg = "+message);
-        this.bufferEnvoi = new byte[message.length()];
-
-        for (int i=0; i<this.bufferEnvoi.length; i++) {
-            bufferEnvoi[i] = (byte)(message.charAt(i));
-        }
-
-        log("bufferEnvoi = "+bufferEnvoi);
-        this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
-        log("");
-    }
-
-
-
-    protected void recoitBloquant() throws IOException {
-        log("");
-        this.socket.receive(this.packetRecu);
-        log("");
-    }
-    protected void envoiBloquant() throws IOException {
-        log("");
-        this.socket.send(this.packetEnvoi);
-        log("");
-    }
-
-
-
-    // on compare bufferRecu au message qu'on était censés recevoir: s'ils ne sont pas identiques on lève une exception
-    protected void verifieRecu(String messageAttendu) throws Exception {
-        log("messageAttendu = "+messageAttendu);
-        String messageRecu = (new String(this.bufferRecu, "UTF-8")).trim();
-        if (!messageAttendu.equals(messageRecu)) {
-            log(2, "verifieRecu(): message recu '"+messageRecu+"' au lieu du message attendu '"+messageAttendu+"'");
-
-            int s = Integer.parseInt(messageRecu.substring(3));
-            throw new Exception(messageRecu.substring(3));
-        } else {
-            log("message vérifié");
-        }
-        log("");
-    }
-
-    // surcharge
-    protected void verifieRecu(int ackAVerifier) throws Exception {
-        log("ackAVerifier = "+ackAVerifier);
-
-        String s = String.valueOf(ackAVerifier);
-        while (s.length() < NBYTESEQ) {
-            s = new String("0"+s);
-        }
-        verifieRecu("ACK"+s);
-        log("");
-    }
-
-
-    protected void initClientApresRecu() throws IOException {
-        log("");
-        this.addrClient = this.packetRecu.getAddress();
-        this.portClient = this.packetRecu.getPort();
-        log("client "+this.addrClient.toString()+":"+this.portClient);
-
-        // on doit initialise bufferEnvoi avec une taille arbitraire uniquement pour initialiser packetEnvoi
-        this.bufferEnvoi = new byte[2000];
-        this.packetEnvoi = new DatagramPacket(bufferEnvoi, bufferEnvoi.length, this.addrClient, this.portClient);
-        log("");
-    }
-
 
     public void log(int level, String msg, String couleur) {
         if(level < this.debugLevel)
@@ -147,6 +68,7 @@ public abstract class Serveur implements Runnable {
 
         System.out.println( couleur + sb + msg + RESET);
     }
+    // différentes surcharges
     public void log(int level, String msg) {
         if (level==2)
             log(level, msg, this.debugColor);
@@ -161,4 +83,87 @@ public abstract class Serveur implements Runnable {
     public void log(String msg, String couleur) {
         log(1, msg, couleur);
     }
+    /***********************************************************************************************/
+
+
+    /***********************************************************************************************/
+    //  (2) Méthodes pour recevoir des données
+    /***********************************************************************************************/
+    // on se prépare à recevoir n bytes dans bufferRecu
+    protected void initRecu(int tailleByte) {
+        log("tailleByte = "+tailleByte);
+        this.bufferRecu = new byte[tailleByte];
+        this.packetRecu = new DatagramPacket(this.bufferRecu, this.bufferRecu.length);
+        log("");
+    }
+
+    protected void recoitBloquant() throws IOException {
+        log("");
+        this.socket.receive(this.packetRecu);
+        log("");
+    }
+
+    protected void initClientApresRecu() throws IOException {
+        log("");
+        this.addrClient = this.packetRecu.getAddress();
+        this.portClient = this.packetRecu.getPort();
+        log("client "+this.addrClient.toString()+":"+this.portClient);
+
+        // on doit initialise bufferEnvoi avec une taille arbitraire uniquement pour initialiser packetEnvoi
+        this.bufferEnvoi = new byte[2000];
+        this.packetEnvoi = new DatagramPacket(bufferEnvoi, bufferEnvoi.length, this.addrClient, this.portClient);
+        log("");
+    }
+
+    // on compare bufferRecu au message qu'on était censés recevoir: s'ils ne sont pas identiques on lève une exception
+    protected void verifieRecu(String messageAttendu) throws ErreurMessageInattendu, UnsupportedEncodingException {
+        log("messageAttendu = "+messageAttendu);
+        String messageRecu = (new String(this.bufferRecu, "UTF-8")).trim();
+        if (!messageAttendu.equals(messageRecu)) {
+            // log("message recu '"+messageRecu+"' au lieu du message attendu '"+messageAttendu+"'");
+            log("exception levée ErreurMessageInattendu()");
+            throw new ErreurMessageInattendu(messageAttendu, messageRecu);
+        } else {
+            log("message vérifié");
+        }
+        log("");
+    }
+
+    // surcharge pour les acquittements (ex: ACK000003)
+    protected void verifieRecu(int ackAVerifier) throws ErreurMessageInattendu, UnsupportedEncodingException {
+        log("ackAVerifier = "+ackAVerifier);
+
+        String s = String.valueOf(ackAVerifier);
+        while (s.length() < NBYTESEQ) {
+            s = new String("0"+s);
+        }
+        verifieRecu("ACK"+s);
+        log("");
+    }
+    /***********************************************************************************************/
+
+
+    /***********************************************************************************************/
+    //  (3) Méthodes pour envoyer des données
+    /***********************************************************************************************/
+    protected void initEnvoiChaine(String message) {
+        log("msg = "+message);
+        this.bufferEnvoi = new byte[message.length()];
+
+        for (int i=0; i<this.bufferEnvoi.length; i++) {
+            bufferEnvoi[i] = (byte)(message.charAt(i));
+        }
+
+        log("bufferEnvoi = "+bufferEnvoi);
+        this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
+        log("");
+    }
+
+    protected void envoiBloquant() throws IOException {
+        log("");
+        this.socket.send(this.packetEnvoi);
+        log("");
+    }
+    /***********************************************************************************************/
+
 }

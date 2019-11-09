@@ -8,7 +8,7 @@ import java.util.concurrent.*;
 public class Worker extends Serveur {
 
     public static final int MAXBUFFSIZE = 8192;
-    public static final int TIMEOUT = 100;
+    public static final int TIMEOUT = 2000;
 
     private BufferedInputStream fluxFichier;
 
@@ -104,6 +104,7 @@ public class Worker extends Serveur {
             seq        = 1;
             ssthresh   = 1000;
             int nBytesLus = 0;
+            int dernierAckRecu = 0;
             while(nBytesLus != -1) {
 
                 //  (2.1)
@@ -114,10 +115,18 @@ public class Worker extends Serveur {
                     log(2, "paquet "+seq+" envoyé");
                     seq++;
                 }
+                log(2, "");
                 
                 //  (2.2)
                 for(int seqAVerifier : window.keySet()) {
-                    if (window.get(seqAVerifier) == true) continue;
+                    if (seqAVerifier <= dernierAckRecu) {
+                        window.replace(seqAVerifier, true);
+                        log(2, "paquet "+seqAVerifier+" vérifié en chaine");
+                        cwnd++;
+                        log(2, "cwnd = "+cwnd);
+                        continue;
+                    }
+                    if (window.get(seqAVerifier) == true) continue;         //  à supprimer ?
 
                     //  (2.2.1)
                     try {
@@ -131,32 +140,36 @@ public class Worker extends Serveur {
                         // log(2, "paquet "+seqAVerifier+" retiré de la window");
                     }
 
+                    catch (ErreurMessageInattendu e) {
+                        log(2, "paquet "+seqAVerifier+" : ACK reçu n'est pas celui attendu");
+
+                        //  (2.2.2)
+                        if (e.ackRecu >= seqAVerifier) {
+                            log(2, "ackRecu supérieur = "+e.ackRecu);
+                            window.replace(seqAVerifier, true);             // (!) On reçoit une seule exception et il faut acquitter tous les messages concernés
+                            log(2, "paquet "+seqAVerifier+" vérifié en chaine");
+                            dernierAckRecu = e.ackRecu;
+                            cwnd++;
+                            log(2, "cwnd = "+cwnd);
+                        }
+                        // (2.2.3)
+                        else {
+                            log(2, "paquet "+seqAVerifier+" perdu ! ackRecu inférieur = "+e.ackRecu);
+                            ssthresh = cwnd/2;
+                            cwnd = 1;
+                            //log(2, "paquet perdu ! cwnd = "+cwnd+" ssthresh = "+ssthresh);
+                        }
+                    }
+
                     //  (2.2.4)
                     catch (SocketTimeoutException e) {
                         ssthresh = cwnd/2;
                         cwnd = 1;
-                        log(2, "paquet perdu ! cwnd = "+cwnd+" ssthresh = "+ssthresh);
-                    }
-
-                    catch (Exception e) {
-                        log(2, "ACK reçu "+e.getMessage()+" n'est pas celui attendu");
-                        try {
-                            int ackRecu = Integer.parseInt(e.getMessage());
-                            //  (2.2.2)
-                            if (ackRecu >= seqAVerifier) {
-                                log(2, "ackRecu = "+ackRecu);
-                                window.replace(seqAVerifier, true);
-                                log(2, "paquet "+seqAVerifier+" vérifié");
-                            }
-                            // (2.2.3)
-                            else {
-                                ssthresh = cwnd/2;
-                                cwnd = 1;
-                                log(2, "paquet perdu ! cwnd = "+cwnd+" ssthresh = "+ssthresh);
-                            }
-                        } catch (Exception e2) { e.printStackTrace();}
+                        log(2, "paquet "+seqAVerifier+" perdu ! pas de réponse");
+                        // log(2, "paquet perdu ! cwnd = "+cwnd+" ssthresh = "+ssthresh);
                     }
                 }
+                log(2, "");
 
                 //  (2.3)
                 // window.entrySet().removeIf(entry -> (new Boolean(true)).equals(entry.getValue()));
@@ -168,6 +181,7 @@ public class Worker extends Serveur {
                         log(2, "paquet "+entry.getKey()+" supprimé");
                     }
                 }
+                log(2, "------------------------------------------------");
             }
 
             initEnvoiChaine("FIN");
@@ -175,6 +189,7 @@ public class Worker extends Serveur {
 
         } catch (Exception e) {
             // (!) on peut recevoir une SocketException
+            // (!) on peut recevoir une UnsupportedEncodingException
             e.printStackTrace();
             return;
         }

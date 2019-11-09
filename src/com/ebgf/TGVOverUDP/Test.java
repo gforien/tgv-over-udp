@@ -15,7 +15,7 @@ public class Test {
             int port = Integer.parseInt(args[1]);
 
             (new Thread(new Test.ThreadMere(port, ip), "PERE")).start();
-
+            //(new Thread(new Worker(port, ip), "worker")).start();
         } catch (Exception e) {
             System.out.println("usage: java com.ebgf.TGVOverUDP.Test  <ip>  <port>");
         }

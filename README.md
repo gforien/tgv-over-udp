@@ -18,14 +18,14 @@ Le TGV est maintenant lancé, et il est en passe de conquérir le monde.<br>
 En environnement de test :
 ```bash
 $ make -f src/Makefile
-$ java -cp bin com.ebgf.TGVOverUDP.Test 2000
-$ netcat localhost 2000 -u
+$ java -cp bin com.ebgf.TGVOverUDP.Test 127.0.0.1 2000
+$ netcat 127.0.0.1 2000 -u
 ```
 
 En environnement de production :
 ```bash
 $ make -f src/Makefile
-$ ./bin/serveur1-TGVOverUDP 2000
+$ ./bin/serveur1-TGVOverUDP 127.0.0.1 2000
 $ ./bin/client1 127.0.0.1 2000 bin/file
 ```
 
