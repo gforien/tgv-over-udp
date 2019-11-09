@@ -1,5 +1,3 @@
-13Mofile
-fichierRECU
-client
-serveur
-*.o
+*.class
+bin/copy_*
+copy_*
