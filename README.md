@@ -25,8 +25,9 @@ $ netcat 127.0.0.1 2000 -u
 En environnement de production :
 ```bash
 $ make -f src/Makefile
-$ ./bin/serveur1-TGVOverUDP 127.0.0.1 2000
-$ ./bin/client1 127.0.0.1 2000 bin/file
+$ ./bin/serveur1-TGVOverUDP 10.43.2.134 2000
+$ ./bin/client1 10.43.2.134 2000 bin/file
+$ { time ./client2 10.43.2.134 1234 bin/file 0; } 2> out.txt
 ```
 
 #

@@ -8,7 +8,7 @@ import java.util.concurrent.*;
 public class Worker extends Serveur {
 
     public static final int MAXBUFFSIZE = 8192;
-    public static final int TIMEOUT = 1000;
+    public static final int TIMEOUT = 100;
 
     private BufferedInputStream fluxFichier;
 
@@ -26,7 +26,10 @@ public class Worker extends Serveur {
         this.ssthresh   = 1000;
         
         this.debugColor = CYAN;
-        this.debugLevel = 2;
+        this.debugLevel = 3;
+    }
+    public void log(int level, String msg) {
+        log(level, msg, this.debugColor);
     }
 
     private int initEnvoiFichier() throws IOException {
@@ -79,7 +82,7 @@ public class Worker extends Serveur {
             initClientApresRecu();
 
             nomFichier = (new String(bufferRecu, "UTF-8")).trim();
-            log(2, "Fichier demandé: "+nomFichier);
+            log(3, "Fichier demandé: "+nomFichier);
             // (!)   le fichier doit exister dans le classpath ./bin   (!)
 
             this.fluxFichier = new BufferedInputStream(new FileInputStream("./bin/"+nomFichier));
@@ -89,16 +92,9 @@ public class Worker extends Serveur {
 
             /*************************************************************************************
                     (2) Gestion des paquets TCP
-                            (2.1) on envoie tous les paquets de la congestion window
-                                  on les ajoute à la HashMap en mode "false" = non acquittés
-
-                            (2.2) on attend l'acquittement des paquets "false"
-                                    (2.2.1) paquet acquitté -> on le passe en "true" et cwnd++ (Slow Start)
-                                    (2 .2.2) on reçoit un ACK supérieur -> on acquitte tout ??
-                                    (2.2.3) problème : on reçoit un ACK inférieur
-                                    (2.2.4) problème : pas de réponse du client
-
-                            (2.3) on enlève de la window les paquets "true" = acquittés
+                            - on envoie tous les paquets de la congestion window
+                            - on attend un acquittement du dernier paquet envoyé
+                            - si on reçoit des ACK en double, ou pas d'ACK, on renvoie le paquet
             /*************************************************************************************/
             cwnd       = 1;
             seq        = 1;
@@ -112,7 +108,7 @@ public class Worker extends Serveur {
 
             while(nBytesLus != -1 || dernierAckRecu != (seq-1)) {
 
-                //  (2.1) Envoi
+                //  (1) Envoi
                 while (nBytesLus != -1 && dernierAckRecu+cwnd >= seq) {
                     nBytesLus = initEnvoiFichier();
                     envoiBloquant();
@@ -126,81 +122,71 @@ public class Worker extends Serveur {
                 }
                 log(2, "");
 
-                //  (2.2) Réception
-                //  (2.2.1) Tout va bien
+                //  (2) On attend un ACK du dernier paquet envoyé
                 try {
                     initRecu(9);
                     recoitNonBloquant();
                     verifieRecu(dernierAckRecu+1);
-                    dernierAckRecu++;
 
-                    //log(2, "paquet "+dernierAckRecu+" vérifié");
+                    //  (2.1) Tout se déroule comme prévu
+                    dernierAckRecu++;
                     cwnd++;
-                    //log(2, "cwnd = "+cwnd);
                     log(2, "paquet = "+dernierAckRecu+" vérifié\t\tcwnd = "+cwnd);
                 }
 
                 catch (ErreurMessageInattendu e) {
-
-                    //  (2.2.2)
+                    //  (2.2) Plusieurs ACK aquittés d'un coup
                     if (e.ackRecu > dernierAckRecu+1) {
-                        //log(2, "ackRecu supérieur = "+e.ackRecu);
                         dernierAckRecu = e.ackRecu;
                         cwnd += e.ackRecu - dernierAckRecu+1 + 1;
                         log(2, "ackRecu supérieur = "+e.ackRecu+"\t\tcwnd = "+cwnd);
                     }
-                    // (2.2.3)
+
+                    // (2.3) ACK dupliqué -> on renvoie le paquet
                     else if (e.ackRecu == dernierAckRecu) {
-                        //log(2, "ackRecu dupliqué = "+e.ackRecu);
                         log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\tcwnd = 1");
                         // ssthresh = cwnd/2;
                         cwnd = 1;
+
                         this.bufferEnvoi = window.get(dernierAckRecu+1);
                         this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
                         this.envoiBloquant();
 
                         System.arraycopy(bufferEnvoi,0, seq2, 0, NBYTESEQ);
-                        try{
-                            log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
-                        } catch (Exception e3) {}
-                        //log(2, "paquet perdu ! cwnd = "+cwnd+" ssthresh = "+ssthresh);
+                        log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
                     }
 
-                    // On s'en bat bien bien les couilles
                     else {
-                        //log(2, "ackRecu inférieur = "+e.ackRecu);
                         log(2, "ackRecu inférieur = "+e.ackRecu+"\t\tcwnd = "+cwnd);
                     }
-
                 }
 
-                //  (2.2.4)
+                //  (2.4) Plus de réponse -> on renvoie un paquet
                 catch (SocketTimeoutException e) {
                     ssthresh = cwnd/2;
                     cwnd = 1;
-                    //log(2, "paquet "+(dernierAckRecu+1)+" perdu ! pas de réponse");
                     log(2, "pas de réponse du client !");
-                    //log(2, "seq = "+seq);
-                    //log(2, "dernierAckRecu = "+dernierAckRecu);
-                    //log(2, "cwnd = "+cwnd);
+
 
                     this.bufferEnvoi = window.get(dernierAckRecu+1);
                     this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
                     this.envoiBloquant();
 
                     System.arraycopy(bufferEnvoi,0, seq2, 0, NBYTESEQ);
-                    try{
-                        log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
-                    } catch (Exception e3) {}
+                    log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
                 }
                 log(2, "------------------------------------------------");
                 // scanner.nextLine();
             }
 
+
+
+            /*************************************************************************************
+                    (3) Terminaison
+            /*************************************************************************************/
             initEnvoiChaine("FIN");
             envoiBloquant();
-            log(2, "FIN envoyé -> end()");
-
+            log(3, "FIN envoyé -> end()");
         } catch (Exception e) {
             // (!) on peut recevoir une SocketException
             // (!) on peut recevoir une UnsupportedEncodingException
