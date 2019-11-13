@@ -7,7 +7,7 @@ import java.util.concurrent.*;
 
 public class Worker extends Serveur {
 
-    public static final int MAXBUFFSIZE = 8192;
+    public static final int MAXBUFFSIZE = 15000; // 8192 ? 65536 ? < 1500 ?
     public static final int TIMEOUT = 100;
 
     private BufferedInputStream fluxFichier;

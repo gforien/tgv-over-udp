@@ -1,3 +1,4 @@
 *.class
 bin/copy_*
 copy_*
+temp
