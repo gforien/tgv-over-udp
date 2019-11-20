@@ -7,7 +7,7 @@ import java.util.concurrent.*;
 
 public class Worker extends Serveur {
 
-    public static final int MAXBUFFSIZE = 65000; // 8192 ? 65536 ? < 1500 ?
+    public static final int MAXBUFFSIZE = 65500; // 8192 ? 65536 ? < 1500 ?
     public static final int TIMEOUT = 5;
 
     private BufferedInputStream fluxFichier;
@@ -19,7 +19,8 @@ public class Worker extends Serveur {
 
     public Worker(int port, String ip, int debugLevel) throws IOException {
         super(port, ip);
-        this.debugColor = "\033[1;3"+((new Random()).nextInt(7) + 1)+"m";
+        //this.debugColor = "\033[1;3"+((new Random()).nextInt(7) + 1)+"m";
+        this.debugColor = CYAN;
         this.debugLevel = debugLevel;
 
         log(2, "ip = "+ip+" port = "+port);
