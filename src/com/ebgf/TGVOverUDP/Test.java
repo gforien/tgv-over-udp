@@ -13,24 +13,29 @@ public class Test {
 
             String ip = args[0];
             int port = Integer.parseInt(args[1]);
+            int debugLevel = (args.length > 2)? Integer.parseInt(args[2]): 2;
 
-            (new Thread(new Test.ThreadMere(port, ip), "PERE")).start();
+
+            (new Thread(new Test.Pere(port, ip, debugLevel), "PERE")).start();
             //(new Thread(new Worker(port, ip), "worker")).start();
         } catch (Exception e) {
-            System.out.println("usage: java com.ebgf.TGVOverUDP.Test  <ip>  <port>");
+            e.printStackTrace();
+            System.out.println("usage: java com.ebgf.TGVOverUDP.Test  <ip>  <port>  <debugLevel>");
         }
     }
 
 
-    public static class ThreadMere extends Serveur {
+    public static class Pere extends Serveur {
 
         public int portDedie = 4983;
         public ExecutorService executeur = Executors.newFixedThreadPool(100);
 
-        public ThreadMere(int port, String ip) throws IOException {
+        public Pere(int port, String ip, int debugLevel) throws IOException {
             super(port, ip);
             this.debugColor = VIOLET;
-            this.debugLevel = 2;
+            this.debugLevel = debugLevel;
+            log("ip = "+ip+" port = "+port);
+            log("");
         }
 
         @Override
@@ -48,7 +53,7 @@ public class Test {
 
                     initClientApresRecu();      // après avoir reçu un message on a bien les infos du client
 
-                    fils = new Worker(this.portDedie, this.ip);
+                    fils = new Worker(this.portDedie, this.ip, this.debugLevel);
 
                     initEnvoiChaine("SYN-ACK"+String.valueOf(this.portDedie));
                     envoiBloquant();
@@ -59,10 +64,8 @@ public class Test {
                     log(2, "three-way handshake réussi");
 
                     executeur.execute(fils);
-                    //fils.start();
-                    //arrayFils.add(fils);
+                    log(3, "Worker lancé sur le port "+this.portDedie);
                     this.portDedie++;
-                    log("Worker lancé ! nouveau port dédié ="+this.portDedie);
                 }
             } catch (Exception e) {
                 e.printStackTrace();

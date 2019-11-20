@@ -8,7 +8,7 @@ import java.util.concurrent.*;
 public class Worker extends Serveur {
 
     public static final int MAXBUFFSIZE = 65000; // 8192 ? 65536 ? < 1500 ?
-    public static final int TIMEOUT = 100;
+    public static final int TIMEOUT = 5;
 
     private BufferedInputStream fluxFichier;
 
@@ -17,19 +17,17 @@ public class Worker extends Serveur {
     private int seq;
     private int ssthresh;
 
-    public Worker(int port, String ip) throws IOException {
+    public Worker(int port, String ip, int debugLevel) throws IOException {
         super(port, ip);
+        this.debugColor = "\033[1;3"+((new Random()).nextInt(7) + 1)+"m";
+        this.debugLevel = debugLevel;
 
+        log("ip = "+ip+" port = "+port);
         this.window     = new HashMap<Integer, byte[]>(1000);
         this.cwnd       = 1;
         this.seq        = 1;
         this.ssthresh   = 1000;
-        
-        this.debugColor = CYAN;
-        this.debugLevel = 3;
-    }
-    public void log(int level, String msg) {
-        log(level, msg, this.debugColor);
+        log("");
     }
 
     private int initEnvoiFichier() throws IOException {

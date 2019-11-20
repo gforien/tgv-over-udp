@@ -45,11 +45,11 @@ public abstract class Serveur implements Runnable {
     public abstract void run();
 
     public Serveur(int port, String ip) throws IOException, UnknownHostException {
-        log("ip = "+ip+" port = "+port);
+        // log("ip = "+ip+" port = "+port);
         this.port   = port;
         this.ip     = ip;
         this.socket = (ip == null)? new DatagramSocket(this.port): new DatagramSocket(this.port, InetAddress.getByName(ip));
-        log("");
+        //log("");
     }
     public Serveur(int port) throws IOException, UnknownHostException {
         this(port, null);
@@ -68,20 +68,11 @@ public abstract class Serveur implements Runnable {
 
         System.out.println( couleur + sb + msg + RESET);
     }
-    // différentes surcharges
     public void log(int level, String msg) {
-        if (level==2)
-            log(level, msg, this.debugColor);
-        else if (level==3)
-            log(level, msg, ROUGE);
-        else
-            log(level, msg, BLANC);
+        log(level, msg, this.debugColor);
     }
     public void log(String msg) {
-        log(1, msg, BLANC);
-    }
-    public void log(String msg, String couleur) {
-        log(1, msg, couleur);
+        log(1, msg, this.debugColor);
     }
     /***********************************************************************************************/
 
