@@ -22,7 +22,7 @@ public class Worker extends Serveur {
         this.debugColor = "\033[1;3"+((new Random()).nextInt(7) + 1)+"m";
         this.debugLevel = debugLevel;
 
-        log("ip = "+ip+" port = "+port);
+        log(2, "ip = "+ip+" port = "+port);
         this.window     = new HashMap<Integer, byte[]>(1000);
         this.cwnd       = 1;
         this.seq        = 1;

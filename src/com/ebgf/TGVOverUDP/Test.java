@@ -32,9 +32,9 @@ public class Test {
 
         public Pere(int port, String ip, int debugLevel) throws IOException {
             super(port, ip);
-            this.debugColor = VIOLET;
+            this.debugColor = BLANC;
             this.debugLevel = debugLevel;
-            log("ip = "+ip+" port = "+port);
+            log(2, "ip = "+ip+" port = "+port);
             log("");
         }
 
@@ -64,7 +64,7 @@ public class Test {
                     log(2, "three-way handshake réussi");
 
                     executeur.execute(fils);
-                    log(3, "Worker lancé sur le port "+this.portDedie);
+                    log(2, "Worker lancé sur le port "+this.portDedie);
                     this.portDedie++;
                 }
             } catch (Exception e) {
