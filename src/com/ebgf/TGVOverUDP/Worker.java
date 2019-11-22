@@ -7,9 +7,6 @@ import java.util.concurrent.*;
 
 public class Worker extends Serveur {
 
-    public static final int MAXBUFFSIZE = 65500; // 8192 ? 65536 ? < 1500 ?
-    public static final int TIMEOUT = 5;
-
     private BufferedInputStream fluxFichier;
 
     private HashMap<Integer, byte[]> window;
@@ -17,17 +14,23 @@ public class Worker extends Serveur {
     private int seq;
     private int ssthresh;
 
-    public Worker(int port, String ip, int debugLevel) throws IOException {
+    private int MAXBUFFSIZE = 1300;
+    private int TIMEOUT = 5;
+
+    public Worker(int port, String ip, int debugLevel, int bufferSize, int timeout) throws IOException {
         super(port, ip);
-        //this.debugColor = "\033[1;3"+((new Random()).nextInt(7) + 1)+"m";
-        this.debugColor = CYAN;
+        this.debugColor = "\033[1;3"+((new Random()).nextInt(7) + 1)+"m";
+        // this.debugColor = CYAN;
         this.debugLevel = debugLevel;
 
-        log(2, "ip = "+ip+" port = "+port);
+        log(3, "ip = "+ip+" port = "+port);
+        log(3, "bufferSize = "+bufferSize+" timeout = "+timeout);
         this.window     = new HashMap<Integer, byte[]>(1000);
         this.cwnd       = 1;
         this.seq        = 1;
         this.ssthresh   = 1000;
+        this.MAXBUFFSIZE = bufferSize;
+        this.TIMEOUT = timeout;
         log("");
     }
 
@@ -166,7 +169,6 @@ public class Worker extends Serveur {
                     cwnd = 1;
                     log(2, "pas de réponse du client !");
 
-
                     this.bufferEnvoi = window.get(dernierAckRecu+1);
                     this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
                     this.envoiBloquant();
@@ -175,7 +177,7 @@ public class Worker extends Serveur {
                     log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
                 }
                 log(2, "------------------------------------------------");
-                // scanner.nextLine();
+                //scanner.nextLine();
             }
 
 

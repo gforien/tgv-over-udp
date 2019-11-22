@@ -14,13 +14,15 @@ public class Test {
             String ip = args[0];
             int port = Integer.parseInt(args[1]);
             int debugLevel = (args.length > 2)? Integer.parseInt(args[2]): 2;
+            int bufferSize = (args.length > 3)? Integer.parseInt(args[3]): 1000;
+            int timeout = (args.length > 4)? Integer.parseInt(args[4]): 10;
+            boolean enBoucle = (args.length > 5)? Boolean.parseBoolean(args[5]): true;
 
+            (new Thread(new Test.Pere(port, ip, debugLevel, bufferSize, timeout, enBoucle), "PERE")).start();
 
-            (new Thread(new Test.Pere(port, ip, debugLevel), "PERE")).start();
-            //(new Thread(new Worker(port, ip), "worker")).start();
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("usage: java com.ebgf.TGVOverUDP.Test  <ip>  <port>  <debugLevel>");
+            System.out.println("usage: java com.ebgf.TGVOverUDP.Test  <ip> <port> <debugLevel> <bufferSize> <timeout> <enBoucle>");
         }
     }
 
@@ -29,12 +31,18 @@ public class Test {
 
         public int portDedie = 4983;
         public ExecutorService executeur = Executors.newFixedThreadPool(100);
+        public int bufferSize = 1000;
+        public int timeout = 10;
+        public boolean enBoucle = true;
 
-        public Pere(int port, String ip, int debugLevel) throws IOException {
+        public Pere(int port, String ip, int debugLevel, int bufferSize, int timeout, boolean enBoucle) throws IOException {
             super(port, ip);
             this.debugColor = BLANC;
             this.debugLevel = debugLevel;
-            log(2, "ip = "+ip+" port = "+port);
+            this.bufferSize = bufferSize;
+            this.timeout = timeout;
+            this.enBoucle = enBoucle;
+            log(2, "ip = "+ip+" port = "+port+" bufferSize = "+bufferSize+" timeout = "+timeout+" enBoucle = "+enBoucle);
             log("");
         }
 
@@ -43,7 +51,7 @@ public class Test {
             Runnable fils;
 
             try {
-                while(true) {
+                do {
 
                     log(2, "<< three-way handshake >>");
                     initRecu(3);                // on reçoit SYN ou ACK -> 3 caractères
@@ -53,7 +61,7 @@ public class Test {
 
                     initClientApresRecu();      // après avoir reçu un message on a bien les infos du client
 
-                    fils = new Worker(this.portDedie, this.ip, this.debugLevel);
+                    fils = new Worker(this.portDedie, this.ip, this.debugLevel, this.bufferSize, this.timeout);
 
                     initEnvoiChaine("SYN-ACK"+String.valueOf(this.portDedie));
                     envoiBloquant();
@@ -66,16 +74,17 @@ public class Test {
                     executeur.execute(fils);
                     log(2, "Worker lancé sur le port "+this.portDedie);
                     this.portDedie++;
-                }
+
+                } while (this.enBoucle);
             } catch (Exception e) {
                 e.printStackTrace();
                 return;
             }
 
-            /*log(2, "On termine l'exécuteur");
+            log(2, "On termine l'exécuteur");
             executeur.shutdown();
             while (!executeur.isTerminated()) {}
-            log(2, "Tous threads fermés");*/
+            log(2, "Tous threads fermés");
         }
     }
 }
