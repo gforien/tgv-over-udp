@@ -6,11 +6,11 @@
 # sans pertes sur une machine en local => 360 Mb/s
 TIMEFORMAT='%3R'
 
-MODE='1 CLIENT'
+MODE='UNI-CLIENT'
 #MODE='MULTI-CLIENT'
 echo "MODE $MODE"
 
-if [[ $MODE == '1 CLIENT' ]]; then
+if [[ $MODE == 'UNI-CLIENT' ]]; then
         #-------------------------------------------------------------------------
         #
         #       MODE 1 : le serveur se lance une fois et accepte un seul client
@@ -35,6 +35,9 @@ if [[ $MODE == '1 CLIENT' ]]; then
             kill $(pgrep java)
         fi
 
+        echo -e "$client :: bufferSize = $bufferSize\ttimeout = $timeout\tfichier = ${taille}Mo"
+        echo "-------------------------------------------------------------"
+
         for bufferSize in $(seq 50000 2000 65000); do
 
             # on lance le serveur en tâche de fond
@@ -43,9 +46,11 @@ if [[ $MODE == '1 CLIENT' ]]; then
             sleep 1
 
             # on lance le client et on attend qu'il soit bien fini
-            echo -n "./bin/$client $ip $port ${taille}Mo 0"
+            # echo -n "./bin/$client $ip $port ${taille}Mo 0"
             (time ./bin/$client $ip $port ${taille}Mo 0) &> temp
             sleep 1
+
+            echo -en "bufferSize = $bufferSize\t\t"
 
             # on calcule le débit
             t=$(cat temp 2>/dev/null | sed 's/,/./')
@@ -86,6 +91,8 @@ elif [[ $MODE == 'MULTI-CLIENT' ]]; then
         exit
     fi
 
+    echo -e "$client :: bufferSize = $bufferSize\ttimeout = $timeout\tfichier = ${taille}Mo"
+    echo "-------------------------------------------------------------"
 
     for i in $(seq 1 $nbEssais); do
         # on crée des nouveaux fichiers
@@ -93,7 +100,8 @@ elif [[ $MODE == 'MULTI-CLIENT' ]]; then
             cp -v "./bin/${taille}Mo" "./bin/fichier$i"
         fi
 
-        echo "./bin/$client $ip $port fichier$i 0"
+        # echo "./bin/$client $ip $port fichier$i 0"
+        echo "Envoi du fichier$i"
         #{ time ./bin/$client $ip $port fichier$i 0; } 2>temp$i &
         (time ./bin/$client $ip $port fichier$i 0) &> temp &
         sleep 0.25
@@ -104,7 +112,8 @@ elif [[ $MODE == 'MULTI-CLIENT' ]]; then
 
     tempsTotal=0
     for i in $(seq 1 $nbEssais); do
-        echo -n "./bin/$client $ip $port fichier$i 0"
+        # echo -n "./bin/$client $ip $port fichier$i 0"
+        echo -en "Fichier$i\t\t"
         t=$(cat temp$i 2>/dev/null | sed 's/,/./')
         #t=$(cat temp$i 2>/dev/null | grep real | cut -f 2 | cut -d m -f 2 | cut -d s -f 1 | sed 's/,/./')
         Mo=$(echo "scale=2; $taille / $t" | bc -l 2>/dev/null)
@@ -118,6 +127,7 @@ elif [[ $MODE == 'MULTI-CLIENT' ]]; then
     echo "DEBIT MOYEN = $Mb Mb/s"
 fi
 
+echo "-------------------------------------------------------------"
 # Cleaner le repertoire
 \rm -f temp* copy*
 # rm -fv bin/fichier*
