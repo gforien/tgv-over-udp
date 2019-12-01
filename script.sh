@@ -6,8 +6,8 @@
 # sans pertes sur une machine en local => 360 Mb/s
 TIMEFORMAT='%3R'
 
-MODE='UNI-CLIENT'
-#MODE='MULTI-CLIENT'
+# MODE='UNI-CLIENT'
+MODE='MULTI-CLIENT'
 echo "MODE $MODE"
 
 if [[ $MODE == 'UNI-CLIENT' ]]; then
@@ -71,14 +71,14 @@ elif [[ $MODE == 'MULTI-CLIENT' ]]; then
     ip=$(hostname -I)
     port=2000
     enBoucle=true
-    debugLevel=4
+    debugLevel=3
 
-    bufferSize=1000
-    timeout=5
+    bufferSize=60000
+    timeout=3
     client='client1'
-    taille=10
+    taille=5
 
-    nbEssais=50
+    nbEssais=20
 
     # si le serveur tourne, on lance juste les clients
     if [[ $(pgrep java ) ]]; then
