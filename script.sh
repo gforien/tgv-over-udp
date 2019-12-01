@@ -1,6 +1,9 @@
 #!/bin/bash
 # set -x
 # dd bs=1000 count=1000 </dev/urandom >1Mo
+# cat 50Mo | nc -l -p 2000
+# time netcat 127.0.0.1 2000 > copy
+# sans pertes sur une machine en local => 360 Mb/s
 TIMEFORMAT='%3R'
 
 MODE='1 CLIENT'
@@ -20,10 +23,10 @@ if [[ $MODE == '1 CLIENT' ]]; then
         enBoucle=false
         debugLevel=4
 
-        bufferSize=1000
-        timeout=5
-        client='client1'
-        taille=10
+        bufferSize=65000
+        timeout=3
+        client=client1
+        taille=5
 
         make -f src/Makefile
 
@@ -32,7 +35,7 @@ if [[ $MODE == '1 CLIENT' ]]; then
             kill $(pgrep java)
         fi
 
-        for bufferSize in $(seq 10000 10000 60000); do
+        for bufferSize in $(seq 50000 2000 65000); do
 
             # on lance le serveur en tâche de fond
             # echo "java -cp bin com.ebgf.TGVOverUDP.Test $ip $port $debugLevel $bufferSize $timeout $enBoucle &"
