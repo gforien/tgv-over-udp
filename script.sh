@@ -17,6 +17,8 @@ echo "MODE $MODE"
 #
 #-------------------------------------------------------------------------
 
+chmod a+x bin/client*
+
 ip=$(hostname -I | cut -d ' ' -f 1)
 port=2000
 client=client1
