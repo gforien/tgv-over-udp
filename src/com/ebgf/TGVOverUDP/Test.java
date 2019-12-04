@@ -10,19 +10,21 @@ public class Test {
     public static void main(String[] args) throws IOException, UnknownHostException {
 
         try {
+            int i=0;
+            String ip          = args[i]; i++;
+            int port           = Integer.parseInt(args[i]); i++;
+            int debugLevel     = (args.length > i)? Integer.parseInt(args[i]): 2; i++;
+            int bufferSize     = (args.length > i)? Integer.parseInt(args[i]): 1000; i++;
+            int timeout        = (args.length > i)? Integer.parseInt(args[i]): 10; i++;
+            int cwnd           = (args.length > i)? Integer.parseInt(args[i]): 10; i++;
+            int maxAckDuplique = (args.length > i)? Integer.parseInt(args[i]): 10; i++;
+            boolean enBoucle   = (args.length > i)? Boolean.parseBoolean(args[i]): true; i++;
 
-            String ip = args[0];
-            int port = Integer.parseInt(args[1]);
-            int debugLevel = (args.length > 2)? Integer.parseInt(args[2]): 2;
-            int bufferSize = (args.length > 3)? Integer.parseInt(args[3]): 1000;
-            int timeout = (args.length > 4)? Integer.parseInt(args[4]): 10;
-            boolean enBoucle = (args.length > 5)? Boolean.parseBoolean(args[5]): true;
-
-            (new Thread(new Test.Pere(port, ip, debugLevel, bufferSize, timeout, enBoucle), "PERE")).start();
+            (new Thread(new Test.Pere(port, ip, debugLevel, bufferSize, timeout, cwnd, maxAckDuplique, enBoucle), "PERE")).start();
 
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("usage: java com.ebgf.TGVOverUDP.Test  <ip> <port> <debugLevel> <bufferSize> <timeout> <enBoucle>");
+            System.out.println("usage: java com.ebgf.TGVOverUDP.Test  <ip> <port> <debugLevel> <bufferSize> <timeout> <cwnd> <maxAckDuplique> <enBoucle>");
         }
     }
 
@@ -33,16 +35,21 @@ public class Test {
         public ExecutorService executeur = Executors.newFixedThreadPool(100);
         public int bufferSize = 1000;
         public int timeout = 10;
+        public int cwnd = 5;
+        public int maxAckDuplique = 1;
         public boolean enBoucle = true;
 
-        public Pere(int port, String ip, int debugLevel, int bufferSize, int timeout, boolean enBoucle) throws IOException {
+        public Pere(int port, String ip, int debugLevel, int bufferSize, int timeout, int cwnd, int maxAckDuplique, boolean enBoucle) throws IOException {
             super(port, ip);
             this.debugColor = BLANC;
             this.debugLevel = debugLevel;
             this.bufferSize = bufferSize;
             this.timeout = timeout;
+            this.cwnd = cwnd;
+            this.maxAckDuplique = maxAckDuplique;
             this.enBoucle = enBoucle;
-            log(2, "ip = "+ip+" port = "+port+" bufferSize = "+bufferSize+" timeout = "+timeout+" enBoucle = "+enBoucle);
+            log(2, "ip = "+ip+" port = "+port+" bufferSize = "+bufferSize);
+            log(2, "maxAckDuplique = "+maxAckDuplique+" cwnd = "+cwnd+" timeout = "+timeout+" enBoucle = "+enBoucle);
             log("");
         }
 
@@ -61,7 +68,7 @@ public class Test {
 
                     initClientApresRecu();      // après avoir reçu un message on a bien les infos du client
 
-                    fils = new Worker(this.portDedie, this.ip, this.debugLevel, this.bufferSize, this.timeout);
+                    fils = new Worker(this.portDedie, this.ip, this.debugLevel, this.bufferSize, this.timeout, this.cwnd, this.maxAckDuplique);
 
                     initEnvoiChaine("SYN-ACK"+String.valueOf(this.portDedie));
                     envoiBloquant();

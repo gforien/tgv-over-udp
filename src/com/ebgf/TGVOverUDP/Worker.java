@@ -12,23 +12,23 @@ public class Worker extends Serveur {
     private HashMap<Integer, byte[]> window;
     private int cwnd;
     private int seq;
-    private int ssthresh;
+    private int maxAckDuplique;
 
     private int MAXBUFFSIZE = 1300;
     private int TIMEOUT = 5;
 
-    public Worker(int port, String ip, int debugLevel, int bufferSize, int timeout) throws IOException {
+    public Worker(int port, String ip, int debugLevel, int bufferSize, int timeout, int cwnd, int maxAckDuplique) throws IOException {
         super(port, ip);
         this.debugColor = "\033[1;3"+((new Random()).nextInt(7) + 1)+"m";
         // this.debugColor = CYAN;
         this.debugLevel = debugLevel;
+        this.cwnd       = cwnd;
 
         log(3, "ip = "+ip+" port = "+port);
         log(3, "bufferSize = "+bufferSize+" timeout = "+timeout);
         this.window     = new HashMap<Integer, byte[]>(1000);
-        this.cwnd       = 1;
         this.seq        = 1;
-        this.ssthresh   = 1000;
+        this.maxAckDuplique = maxAckDuplique;
         this.MAXBUFFSIZE = bufferSize;
         this.TIMEOUT = timeout;
         log("");
@@ -98,11 +98,7 @@ public class Worker extends Serveur {
                             - on attend un acquittement du dernier paquet envoyé
                             - si on reçoit des ACK en double, ou pas d'ACK, on renvoie le paquet
             /*************************************************************************************/
-            cwnd       = 1;
-            int cwnd2  = 1;
-            seq        = 1;
-            int rwnd   = 1;
-            ssthresh   = 10000;
+            seq = 1;
             int nBytesLus = 0;
             int dernierAckRecu = 0;
             int ackDupliques = 0;
@@ -135,59 +131,41 @@ public class Worker extends Serveur {
 
                     //  (2.1) Tout se déroule comme prévu
                     dernierAckRecu++;
-                    if (cwnd < ssthresh) {
-                        cwnd++;
-                    } else {
-                        cwnd2++;
-                        if (cwnd2 >= cwnd) {
-                            cwnd2 = 0;
-                            cwnd++;
-                        }
-                    }
                     ackDupliques = 0;
-                    log(2, "paquet = "+dernierAckRecu+" vérifié\t\t\tcwnd = "+cwnd+"\tssthresh = "+ssthresh);
+                    log(2, "paquet = "+dernierAckRecu+" vérifié");
                 }
 
                 catch (ErreurMessageInattendu e) {
                     //  (2.2) Plusieurs ACK aquittés d'un coup
                     if (e.ackRecu > dernierAckRecu+1) {
                         dernierAckRecu = e.ackRecu;
-                        cwnd += e.ackRecu - dernierAckRecu+1 + 1;
-                        log(2, "ackRecu supérieur = "+e.ackRecu+"\t\tcwnd = "+cwnd);
+                        log(2, "ackRecu supérieur = "+e.ackRecu);
                     }
 
                     // (2.3) ACK dupliqué -> on renvoie le paquet
                     else if (e.ackRecu == dernierAckRecu) {
+                        ackDupliques++;
+                        log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\t"+ackDupliques+" fois");
 
-                        if (ackDupliques == 1) {
-                            ackDupliques = 0;
-                            ssthresh = (rwnd<cwnd)? rwnd/2: cwnd/2;
-                            cwnd = 1;
-                            log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\tcwnd = 1\t\tssthresh = "+ssthresh);
-
+                        if (ackDupliques >= this.maxAckDuplique) {
                             this.bufferEnvoi = window.get(dernierAckRecu+1);
                             this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
                             this.envoiBloquant();
 
                             System.arraycopy(bufferEnvoi,0, seq2, 0, NBYTESEQ);
                             log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
-                        } else {
-                            // on continue comme si de rien n'était
-                            ackDupliques++;
-                            log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\t"+ackDupliques+" fois");
+                            ackDupliques = 0;
                         }
                     }
 
                     else {
-                        log(2, "ackRecu inférieur = "+e.ackRecu+"\t\tcwnd = "+cwnd);
+                        log(2, "ackRecu inférieur = "+e.ackRecu);
                     }
                 }
 
                 //  (2.4) Plus de réponse -> on renvoie un paquet
                 catch (SocketTimeoutException e) {
-                    //ssthresh = cwnd/2;
-                    cwnd = 1;
-                    log(4, "pas de réponse du client !");
+                    log(3, "pas de réponse du client !");
 
                     this.bufferEnvoi = window.get(dernierAckRecu+1);
                     this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
