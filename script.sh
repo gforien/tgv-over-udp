@@ -6,8 +6,8 @@
 # sans pertes sur une machine en local => 360 Mb/s
 TIMEFORMAT='%3R'
 
-# MODE='UNI-CLIENT'
-MODE='MULTI-CLIENT'
+MODE='UNI-CLIENT'
+# MODE='MULTI-CLIENT'
 echo "MODE $MODE"
 
 if [[ $MODE == 'UNI-CLIENT' ]]; then
@@ -21,9 +21,9 @@ if [[ $MODE == 'UNI-CLIENT' ]]; then
         ip=$(hostname -I)
         port=2000
         enBoucle=false
-        debugLevel=4
+        debugLevel=2
 
-        bufferSize=65000
+        bufferSize=62000
         timeout=3
         client=client1
         taille=5
@@ -38,7 +38,7 @@ if [[ $MODE == 'UNI-CLIENT' ]]; then
         echo -e "$client :: bufferSize = $bufferSize\ttimeout = $timeout\tfichier = ${taille}Mo"
         echo "-------------------------------------------------------------"
 
-        for bufferSize in $(seq 50000 2000 65000); do
+        # for bufferSize in $(seq 50000 2000 65000); do
 
             # on lance le serveur en tâche de fond
             # echo "java -cp bin com.ebgf.TGVOverUDP.Test $ip $port $debugLevel $bufferSize $timeout $enBoucle &"
@@ -57,7 +57,7 @@ if [[ $MODE == 'UNI-CLIENT' ]]; then
             Mo=$(echo "scale=2; $taille / $t" | bc -l 2>/dev/null)
             Mb=$(echo "scale=2; 8*$taille / $t" | bc -l 2>/dev/null)
             echo -e "\t\tt = $t s\t\tdebit = $Mb Mb/s"
-        done
+        # done
 
 
 elif [[ $MODE == 'MULTI-CLIENT' ]]; then
@@ -81,7 +81,7 @@ elif [[ $MODE == 'MULTI-CLIENT' ]]; then
     nbEssais=20
 
     # si le serveur tourne, on lance juste les clients
-    if [[ $(pgrep java ) ]]; then
+    if [[ $(pgrep java) ]]; then
         echo "Serveur déjà lancé (PID $(pgrep java ))"
 
     else

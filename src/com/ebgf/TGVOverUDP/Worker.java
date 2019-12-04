@@ -99,10 +99,13 @@ public class Worker extends Serveur {
                             - si on reçoit des ACK en double, ou pas d'ACK, on renvoie le paquet
             /*************************************************************************************/
             cwnd       = 1;
+            int cwnd2  = 1;
             seq        = 1;
-            ssthresh   = 1000;
+            int rwnd   = 1;
+            ssthresh   = 10000;
             int nBytesLus = 0;
             int dernierAckRecu = 0;
+            int ackDupliques = 0;
             byte[] copieBuffer = new byte[MAXBUFFSIZE];
             byte[] seq2 = new byte[NBYTESEQ];
 
@@ -132,8 +135,17 @@ public class Worker extends Serveur {
 
                     //  (2.1) Tout se déroule comme prévu
                     dernierAckRecu++;
-                    cwnd++;
-                    log(2, "paquet = "+dernierAckRecu+" vérifié\t\tcwnd = "+cwnd);
+                    if (cwnd < ssthresh) {
+                        cwnd++;
+                    } else {
+                        cwnd2++;
+                        if (cwnd2 >= cwnd) {
+                            cwnd2 = 0;
+                            cwnd++;
+                        }
+                    }
+                    ackDupliques = 0;
+                    log(2, "paquet = "+dernierAckRecu+" vérifié\t\t\tcwnd = "+cwnd+"\tssthresh = "+ssthresh);
                 }
 
                 catch (ErreurMessageInattendu e) {
@@ -146,16 +158,24 @@ public class Worker extends Serveur {
 
                     // (2.3) ACK dupliqué -> on renvoie le paquet
                     else if (e.ackRecu == dernierAckRecu) {
-                        log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\tcwnd = 1");
-                        // ssthresh = cwnd/2;
-                        cwnd = 1;
 
-                        this.bufferEnvoi = window.get(dernierAckRecu+1);
-                        this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
-                        this.envoiBloquant();
+                        if (ackDupliques == 1) {
+                            ackDupliques = 0;
+                            ssthresh = (rwnd<cwnd)? rwnd/2: cwnd/2;
+                            cwnd = 1;
+                            log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\tcwnd = 1\t\tssthresh = "+ssthresh);
 
-                        System.arraycopy(bufferEnvoi,0, seq2, 0, NBYTESEQ);
-                        log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
+                            this.bufferEnvoi = window.get(dernierAckRecu+1);
+                            this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
+                            this.envoiBloquant();
+
+                            System.arraycopy(bufferEnvoi,0, seq2, 0, NBYTESEQ);
+                            log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
+                        } else {
+                            // on continue comme si de rien n'était
+                            ackDupliques++;
+                            log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\t"+ackDupliques+" fois");
+                        }
                     }
 
                     else {
@@ -165,9 +185,9 @@ public class Worker extends Serveur {
 
                 //  (2.4) Plus de réponse -> on renvoie un paquet
                 catch (SocketTimeoutException e) {
-                    ssthresh = cwnd/2;
+                    //ssthresh = cwnd/2;
                     cwnd = 1;
-                    log(2, "pas de réponse du client !");
+                    log(4, "pas de réponse du client !");
 
                     this.bufferEnvoi = window.get(dernierAckRecu+1);
                     this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
