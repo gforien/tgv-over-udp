@@ -19,7 +19,7 @@ echo "MODE $MODE"
 
 chmod a+x bin/client*
 
-ip=$(hostname -I | cut -d ' ' -f 1)
+ip="134.214.202.227"
 port=2000
 client=client1
 taille=5
@@ -46,22 +46,23 @@ echo "-------------------------------------------------------------"
 for cwnd in $(seq 1 10 100); do
 
     # on lance le serveur en tâche de fond
-    # echo "java -cp bin com.ebgf.TGVOverUDP.Test $ip $port $debugLevel $bufferSize $timeout $enBoucle &"
     java -cp bin com.ebgf.TGVOverUDP.Test $ip $port $debugLevel $bufferSize $timeout $cwnd $maxAckDuplique $enBoucle &
     sleep 1
 
-    # on lance le client et on attend qu'il soit bien fini
-    # echo -n "./bin/$client $ip $port ${taille}Mo 0"
-    (time ./bin/$client $ip $port ${taille}Mo 0) &> temp
-    sleep 1
+    # on fait des moyennes sur 5 essais
+    somme=0
+    for i in $(seq 1 5); do
+        (time ./bin/$client $ip $port ${taille}Mo 0) &> temp
+        sleep 1
 
-    echo -en "cwnd = $cwnd\t\t"
+        t=$(cat temp 2>/dev/null | sed 's/,/./')
+        Mb=$(echo "scale=2; 8*$taille / $t" | bc -l 2>/dev/null)
+        somme=$(echo "scale=2; $somme + $Mb" | bc -l 2>/dev/null)
+    done
+    moyenne=$(echo "scale=2; $somme /5" | bc -l 2>/dev/null)
 
     # on calcule le débit
-    t=$(cat temp 2>/dev/null | sed 's/,/./')
-    Mo=$(echo "scale=2; $taille / $t" | bc -l 2>/dev/null)
-    Mb=$(echo "scale=2; 8*$taille / $t" | bc -l 2>/dev/null)
-    echo -e "\t\tt = $t s\t\tdebit = $Mb Mb/s"
+    echo -e "cwnd = $cwnd\t\tdebit = $moyenne Mb/s"
 done
 
 echo "-------------------------------------------------------------"
