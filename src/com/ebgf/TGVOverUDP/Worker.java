@@ -165,7 +165,7 @@ public class Worker extends Serveur {
 
                 //  (2.4) Plus de réponse -> on renvoie un paquet
                 catch (SocketTimeoutException e) {
-                    log(3, "pas de réponse du client !");
+                    log(2, "pas de réponse du client !");
 
                     this.bufferEnvoi = window.get(dernierAckRecu+1);
                     this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);

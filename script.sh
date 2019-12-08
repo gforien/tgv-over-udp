@@ -19,7 +19,7 @@ echo "MODE $MODE"
 
 chmod a+x bin/client*
 
-ip="134.214.202.227"
+ip=$(hostname -I | cut -d ' ' -f 1)
 port=2000
 client=client1
 taille=5
