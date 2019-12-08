@@ -34,6 +34,51 @@ def serveur():
     print("débit recu %.2f" % (x))
 
 
+    ## ALGORITHME DE RECHERCHE
+    # parametres
+    dim = ['bufferSize', 'cwnd', 'maxAckDuplique']
+    var = {"bufferSize_min" : 100,
+        "bufferSize_max" : 1400,
+        "cwnd_min" : 1,
+        "cwnd_max" : 10,
+        "maxAckDuplique_min" : 0
+        "maxAckDuplique_max" : 10}
+
+    cb = lambda a,c,d: serveur_launch(s, 'client1', 1, 5, a, 2, c, d)
+
+    for d in dim :
+        var[d+"_plage"] = var[d+"_max"] - var[d+"_min"]
+        var[d+] = int((var[d+"_max"] - var[d+"_min"])/2)
+
+    # nb blocs (dim, n) = 2**dim **(n-1)
+
+    ## a chaque étape n = 1, 2, 3 on divise la plage en n blocs
+    for n in range(1,10):
+
+        ## il faut initialiser le delta qui dépend de n
+        for d in dim:
+            delta = int(var[d+"_plage"]/2**(n))
+            if delta < 1:
+                print("ERREUR: dim["+d+"] etape("+n+") -> delta = "+delta)
+                delta = 1
+            var[d+"_delta"] = delta
+            var[d+"_i"] = 1
+            var[d] = int(var[d+"_min"] + var[d+"_delta"]/2)
+
+
+        d = dim[0]
+        for bloc in range(0, 2**(n-1))
+            # dimension 1 en position de départ
+            var[d] = int(var[d+"_min"] + bloc*var[d+"_delta"] + var[d+"_delta"]/2) 
+
+            for d2 in [k for k in dim if k != d]
+
+                for bloc in range(0, 2**(n-1))
+                    var[d2] = int(valeurMin + bloc*delta2 + delta2/2)
+
+                    cle  = [str(eval(var[k])) for k in dim].join(" ")
+                    x[cle] = cb(*[eval(var[k]) for k in dim])
+
     s.close()
 
 
