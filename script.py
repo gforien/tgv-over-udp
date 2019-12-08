@@ -1,69 +1,124 @@
-from subprocess import *
-from time import sleep
+#!/usr/bin/env python3
+# coding: utf-8
+
 """
 Script d'automatisation
 https://stackoverflow.com/questions/4256107/running-bash-commands-in-python
+http://queirozf.com/entries/python-3-subprocess-examples
 
 En python + bash, interdit de :
     - chainer les commandes avec ; && ||
     - rediriger les flux avec > >> 2> &>
     - exécuter en parallèle avec &
  """
+from subprocess import *
+from time import sleep
+from sys import argv
+from socket import *
+
+
+
+def serveur():
+    global ip, port, debugLevel, nEchantillons, enBoucle, typeClient, nClients, taille, bufferSize, timeout, cwnd, maxAckDuplique
+    # la socket
+    ss = socket(AF_INET, SOCK_STREAM)
+    ss.bind((ip, port))
+    ss.listen()
+    s = ss.accept()[0]
+
+    # on compile + chmod
+    check_call("make -sf src/Makefile".split(" "))
+    check_call("chmod a+x bin/client1 bin/client2".split(" "))
+    # test pour le fun
+    x = serveur_launch(s, 'client1', 1, 5, bufferSize, timeout, cwnd, maxAckDuplique)
+    print("débit recu %.2f" % (x))
+
+
+    s.close()
+
+
+
+
+
 
 def main():
-    ## Trucs chiants
-    ip = run(["hostname","-I"], stdout=PIPE, universal_newlines=True).stdout.split("\n")[0].split(" ")[0]
+    global ip, port, debugLevel, nEchantillons, enBoucle, typeClient, nClients, taille, bufferSize, timeout, cwnd, maxAckDuplique
+    # ip             = run(["hostname","-I"], stdout=PIPE, universal_newlines=True).stdout.split("\n")[0].split(" ")[0]
+    ip             = "192.168.1.74"
     port           = 2000
+    debugLevel     = 3
+    nEchantillons  = 10
+
+    enBoucle       = "false"
+    typeClient     = "client1"
+    nClients       = 1
     taille         = 5
 
-
-    debugLevel     = 4
-    client         = "client1"
-    enBoucle       = "false"
     bufferSize     = 62000
     timeout        = 2
     cwnd           = 1
     maxAckDuplique = 3
 
+    # traitement des paramètres
+    assert 2<= len(argv) <=3
+    assert argv[1] in ["client", "serveur"]
+    if len(argv) == 3:
+        assert argv[2] in ["scen1", "scen2", "scen3"]
+    params = {"scen1": ("client1", "false"),
+              "scen2": ("client2", "false"),
+              "scen3": ("client1", "true")}
+    typeClient, enBoucle = params[argv[2] if len(argv)==3 else "scen1"]
+    eval(argv[1]+"()")
 
-    ## Encore les trucs chiants
-    check_call("make -sf src/Makefile".split(" "))
-    check_call("chmod a+x bin/client1 bin/client2".split(" "))
+def serveur_launch(s, typeClient, nClients, taille, bufferSize, timeout, cwnd, maxAckDuplique):
+    global ip, port, debugLevel, nEchantillons, enBoucle
+    # on tue le process et on le relance avec les bons paramètres
     if run(["pgrep", "java"], stdout=PIPE).returncode == 0:
-        print("Process déjà lancé: PID "+cmd("pgrep java"))
-    elif "java" in " ".join(cmd("ps -ax")):
-        print("Process lancé là aussi")
-    else:
-        try:
-            Popen(["java", "-cp", "bin" , "com.ebgf.TGVOverUDP.Test",
-                  ip, str(port), str(debugLevel), str(bufferSize), str(timeout), str(cwnd), str(maxAckDuplique), enBoucle])
-        except UnicodeDecodeError as e:
-            pass
+        pid = run(["pgrep", "java"], stdout=PIPE, universal_newlines=True).stdout.replace("\n", "")
+        print("Process déjà lancé: PID "+pid+" -> kill")
+        check_call(["kill", pid])
         sleep(1)
-
-    client_cmd = ["time", "-f", "%e", "./bin/client1", ip, str(port), str(taille)+"Mo", "0"]
-
-    # for i in range(0,3):
-    process = Popen(client_cmd, universal_newlines=True, stdout=PIPE, stderr=PIPE)
-    out, err = process.communicate()
+    elif "java" in run(["ps","-ax"], stdout=PIPE, universal_newlines=True).stdout:
+        print("ERREUR: Process déjà lancé et intuable")
+        exit(1)
+    try:
+        Popen(["java", "-cp", "bin" , "com.ebgf.TGVOverUDP.Test",
+        ip, str(port), str(debugLevel), str(bufferSize), str(timeout), str(cwnd), str(maxAckDuplique), enBoucle])
+    except UnicodeDecodeError as e:
+        pass
     sleep(1)
-    t = float(err)
-    print("%d / %.2f = %.2f Mb/s" % (taille*8, t, taille*8/t))
+    instructions = {"typeClient": typeClient, "nClients": nClients, "fichier" : str(taille)+"Mo"}
+    print("Demande: %dx %s pour %dMo" % (nClients, typeClient, taille))
+    s.send(str(instructions).encode())
+    return float(s.recv(4096).decode())
 
+def client():
+    global ip, port
+    # la socket
+    s = socket(AF_INET, SOCK_STREAM)
+    s.connect((ip, port))
 
-def cmd(cmd):
-    res = run(cmd.split(" "), check=True, universal_newlines=True, stdout=PIPE, stderr=PIPE)
-    if res.stdout:
-        arr = res.stdout.split("\n")
-        arr = arr[0:len(arr)-1]
-        return arr if len(arr)>1 else arr[0]
+    try:
+        while True:
+            d = eval(s.recv(4096).decode())
+            # print("Lance: %dx %s pour %s" % (d["nClients"], d["typeClient"], d["fichier"]))
+            client_cmd = ["time", "-f", "%e", "./bin/"+d["typeClient"], ip, str(port), d["fichier"], "0"]
+            # for i in range(0,3):
+            process = Popen(client_cmd, universal_newlines=True, stdout=PIPE, stderr=PIPE)
+            out, err = process.communicate()
+            sleep(1)
+            t = float(err)
+            print("Résultat: %.2f Mb/s" % (taille*8/t))
+            s.send(str(taille*8/t).encode())
 
-def cmd_to(cmd, nom_fichier):
-    fichier = open(nom_fichier, "w")
-    a = run(cmd.split(" "), check=True, universal_newlines=True, stdout=fichier, stderr=fichier)
-    fichier.close()
-
-
+    except SyntaxError:
+        s.close()
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except AssertionError:
+        print("usage: ./script.py [client|serveur] scen[1|2|3]")
+    except KeyboardInterrupt as e:
+        print()
+        exit(1)
