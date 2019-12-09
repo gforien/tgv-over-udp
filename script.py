@@ -2,14 +2,14 @@
 # coding: utf-8
 
 """
-Script d'automatisation
-https://stackoverflow.com/questions/4256107/running-bash-commands-in-python
-http://queirozf.com/entries/python-3-subprocess-examples
+Script d'automatisation pour TGV-over-UDP
 
-En python + bash, interdit de :
-    - chainer les commandes avec ; && ||
-    - rediriger les flux avec > >> 2> &>
-    - exécuter en parallèle avec &
+Liens utiles :
+    https://stackoverflow.com/questions/4256107/running-bash-commands-in-python
+    http://queirozf.com/entries/python-3-subprocess-examples
+
+Gabriel Forien
+INSA Lyon 4TC
  """
 from subprocess import *
 from time import sleep
@@ -19,7 +19,6 @@ from socket import *
 
 def main():
     global ip, port, debugLevel, nEchantillons, enBoucle, typeClient, nClients, taille, bufferSize, timeout, cwnd, maxAckDuplique
-    # ip             = run(["hostname","-I"], stdout=PIPE, universal_newlines=True).stdout.split("\n")[0].split(" ")[0]
     ip             = "192.168.1.74"
     port           = 2000
     debugLevel     = 4
@@ -46,16 +45,11 @@ def main():
     typeClient, enBoucle = params[argv[2] if len(argv)==3 else "scen1"]
     eval(argv[1]+"()")
 
-    # # Popen(["java", "-cp", "bin" , "com.ebgf.TGVOverUDP.Test",
-    #     # ip, str(port), str(debugLevel), str(bufferSize), str(timeout), str(cwnd), str(maxAckDuplique), enBoucle])
-    # sleep(1)
-    # pid = run(["pgrep", "java"], stdout=PIPE, universal_newlines=True).stdout.replace("\n", "")
-    # print("pid = "+pid)
-    # check_call(["kill", pid])
 
 def serveur():
     global ip, port, debugLevel, nEchantillons, enBoucle, typeClient, nClients, taille, bufferSize, timeout, cwnd, maxAckDuplique
-    # la socket
+
+    # socket serveur
     ss = socket(AF_INET, SOCK_STREAM)
     ss.bind((ip, port))
     ss.listen()
@@ -64,10 +58,12 @@ def serveur():
     # on compile + chmod
     check_call("make -sf src/Makefile".split(" "))
     check_call("chmod a+x bin/client1 bin/client2".split(" "))
-    # test pour le fun
+    
+    # test lambda
     debit = serveur_launch(s, 'client1', 1, 5, bufferSize, timeout, cwnd, maxAckDuplique)
     print("débit recu %.2f" % (debit))
 
+    # algorithme de recherche
     parametres = ['bufferSize', 'cwnd', 'timeout', 'maxAckDuplique']
     callback = lambda buf, cwind, time, maxAck: serveur_launch(s, 'client1', 1, taille, buf, time, cwind, maxAck)
     minMax = {  "bufferSize_min"     : 50000,     "bufferSize_max" : 62000,
@@ -98,7 +94,6 @@ def serveur_launch(s, typeClient, nClients, taille, bufferSize, timeout, cwnd, m
     except UnicodeDecodeError as e:
         pass
     instructions = {"typeClient": typeClient, "nClients": nClients, "fichier" : str(taille)+"Mo"}
-    # print("Demande: %dx %s pour %dMo" % (nClients, typeClient, taille))
     s.send(str(instructions).encode())
     return float(s.recv(4096).decode())
 
