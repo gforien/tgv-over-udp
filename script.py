@@ -18,17 +18,17 @@ from socket import *
 
 def main():
     global ip, port, debugLevel, nEchantillons, enBoucle, typeClient, nClients, taille, bufferSize, timeout, cwnd, maxAckDuplique
-    ip             = "134.214.202.228"
-    port           = 3000
+    ip             = "134.214.202.221"
+    port           = 10534
     debugLevel     = 4
     nEchantillons  = 10
 
     enBoucle       = "false"
     typeClient     = "client1"
     nClients       = 1
-    taille         = 5
+    taille         = 1
 
-    bufferSize     = 62000
+    bufferSize     = 1480
     timeout        = 2
     cwnd           = 1
     maxAckDuplique = 3
@@ -59,18 +59,21 @@ def serveur():
     check_call("chmod a+x bin/client1 bin/client2".split(" "))
     
     # test lambda
-    debit = serveur_launch(s, 'client1', 1, 5, bufferSize, timeout, cwnd, maxAckDuplique)
-    print("débit recu %.2f" % (debit))
+    # debit = serveur_launch(s, 'client1', 1, 5, bufferSize, timeout, cwnd, maxAckDuplique)
+    # print("débit recu %.2f" % (debit))
 
     # algorithme de recherche
-    precision = 2
-    parametres = ['bufferSize', 'cwnd', 'timeout', 'maxAckDuplique']
-    callback = lambda buf, cwind, time, maxAck: serveur_launch(s, 'client1', 1, taille, buf, time, cwind, maxAck)
+    precision = 1
+    parametres = ['cwnd', 'timeout', 'maxAckDuplique']
+    callback = lambda b_timeout, c_cwnd, d_maxAckDuplique: serveur_launch(s, 'client1', 1, taille, bufferSize, b_timeout, c_cwnd, d_maxAckDuplique)
     minMax = {  "bufferSize_min"     : 100,     "bufferSize_max" : 1490,
-                "cwnd_min"           : 1,             "cwnd_max" : 10,
-                "maxAckDuplique_min" : 0,   "maxAckDuplique_max" : 10,
-                "timeout_min"        : 2,          "timeout_max" : 10}
-    algo_recherche(precision, parametres, minMax, callback)
+                "cwnd_min"           : 37,             "cwnd_max" : 42,
+                "maxAckDuplique_min" : 1,   "maxAckDuplique_max" : 3,
+                "timeout_min"        : 1,          "timeout_max" : 4}
+ 
+    for prec in range(1,100):
+        print("Precision = "+str(prec))
+        algo_recherche(prec, parametres, minMax, callback)
 
     s.close()
     ss.close()
@@ -107,22 +110,29 @@ def client():
 
             while True:
                 d = eval(s.recv(4096).decode())
-                print("Lance: %dx %s pour %s" % (d["nClients"], d["typeClient"], d["fichier"]), end='')
+                # print("Lance: %dx %s pour %s" % (d["nClients"], d["typeClient"], d["fichier"]), end='')
                 client_cmd = ["time", "-f", "%e", "./bin/"+d["typeClient"], ip, str(port), d["fichier"], "0"]
                 process = Popen(client_cmd, universal_newlines=True, stdout=PIPE, stderr=PIPE)
                 out, err = process.communicate()
-                debit = taille*8/float(err)
-                print("    ->  %.2f Mb/s" % (debit))
-                s.send(str(debit).encode())
+                err = err.split("\n")
+                if len(err) > 2:
+                    print("petite erreur... ", end='')
+
+                try:
+                    debit = taille*8/float(err[len(err)-2])
+                    # print("    ->  %.2f Mb/s" % (debit))
+                    s.send(str(debit).encode())
+                except ValueError:
+                    s.send(str(-1).encode())
 
         except (SyntaxError, ConnectionRefusedError):
-            print("Connection lost, try again..")
+            # print("Connection lost, try again..")
             s.close()
-            sleep(3)
+            sleep(5)
 
 
 def algo_recherche(n, dim, var, cb):
-    f = open("trace.log", "w")
+    f = open("trace_"+str(n)+".log", "w", buffering=1)
 
     for d in dim :
         var[d+"_plage"] = var[d+"_max"] - var[d+"_min"]
@@ -137,12 +147,12 @@ def algo_recherche(n, dim, var, cb):
     ## on boucle sur les blocs => un index par dimension, chacun variant de 0 à 2**(n-1)
     idx = [0 for x in dim]
     for i in range((2 **(n-1)) **len(dim)):
-        print(str(idx))
+        # print(str(idx))
 
         for k in range(len(dim)):
             var[dim[k]] = int(var[dim[k]+"_min"] + idx[k]*var[dim[k]+"_delta"] + (var[dim[k]+"_delta"]/2))
-            print(str(var[dim[k]])+", ", end='')
-        print()
+            # print(str(var[dim[k]])+", ", end='')
+        # print()
 
         cle  = "\t".join([str(eval(str(var[x]))) for x in dim])
         x[cle] = cb(*[eval(str(var[x])) for x in dim])
