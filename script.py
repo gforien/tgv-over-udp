@@ -16,11 +16,10 @@ from time import sleep
 from sys import argv
 from socket import *
 
-
 def main():
     global ip, port, debugLevel, nEchantillons, enBoucle, typeClient, nClients, taille, bufferSize, timeout, cwnd, maxAckDuplique
-    ip             = "192.168.1.74"
-    port           = 2000
+    ip             = "134.214.202.228"
+    port           = 3000
     debugLevel     = 4
     nEchantillons  = 10
 
@@ -64,27 +63,29 @@ def serveur():
     print("débit recu %.2f" % (debit))
 
     # algorithme de recherche
+    precision = 2
     parametres = ['bufferSize', 'cwnd', 'timeout', 'maxAckDuplique']
     callback = lambda buf, cwind, time, maxAck: serveur_launch(s, 'client1', 1, taille, buf, time, cwind, maxAck)
-    minMax = {  "bufferSize_min"     : 50000,     "bufferSize_max" : 62000,
+    minMax = {  "bufferSize_min"     : 100,     "bufferSize_max" : 1490,
                 "cwnd_min"           : 1,             "cwnd_max" : 10,
                 "maxAckDuplique_min" : 0,   "maxAckDuplique_max" : 10,
                 "timeout_min"        : 2,          "timeout_max" : 10}
-    algo_recherche(2, parametres, minMax, callback)
+    algo_recherche(precision, parametres, minMax, callback)
 
     s.close()
+    ss.close()
 
 def serveur_launch(s, typeClient, nClients, taille, bufferSize, timeout, cwnd, maxAckDuplique):
     global ip, port, debugLevel, nEchantillons, enBoucle
     # on tue le process et on le relance avec les bons paramètres
-    if run(["pgrep", "java"], stdout=PIPE).returncode == 0:
-        pid = run(["pgrep", "java"], stdout=PIPE, universal_newlines=True).stdout.replace("\n", "")
-        print("Process déjà lancé: PID "+pid+" -> kill")
-        check_call(["kill", pid])
-        sleep(1)
-    elif "java" in run(["ps","-ax"], stdout=PIPE, universal_newlines=True).stdout:
-        print("ERREUR: Process déjà lancé et intuable")
-        exit(1)
+    # if run(["pgrep", "java"], stdout=PIPE).returncode == 0:
+    #    pid = run(["pgrep", "java"], stdout=PIPE, universal_newlines=True).stdout.replace("\n", "")
+    #    print("Process déjà lancé: PID "+pid+" -> kill")
+    #    check_call(["kill", pid])
+    #    sleep(1)
+    # elif "java" in run(["ps","-ax"], stdout=PIPE, universal_newlines=True).stdout:
+    #    print("ERREUR: Process déjà lancé et intuable")
+    #    exit(1)
     try:
         Popen(["java", "-cp", "bin" , "com.ebgf.TGVOverUDP.Test",
         ip, str(port), str(debugLevel), str(bufferSize), str(timeout), str(cwnd), str(maxAckDuplique), enBoucle])
@@ -121,6 +122,8 @@ def client():
 
 
 def algo_recherche(n, dim, var, cb):
+    f = open("trace.log", "w")
+
     for d in dim :
         var[d+"_plage"] = var[d+"_max"] - var[d+"_min"]
 
@@ -141,8 +144,9 @@ def algo_recherche(n, dim, var, cb):
             print(str(var[dim[k]])+", ", end='')
         print()
 
-        cle  = " ".join([str(eval(str(var[x]))) for x in dim])
+        cle  = "\t".join([str(eval(str(var[x]))) for x in dim])
         x[cle] = cb(*[eval(str(var[x])) for x in dim])
+        print("%s\t%s" % (cle, str(x[cle])), file=f)
 
         ## on met à jour les index
         idx[0] += 1
@@ -150,6 +154,7 @@ def algo_recherche(n, dim, var, cb):
             if idx[j] == 2**(n-1) and j+1 != len(idx):
                 idx[j+1] += 1
                 idx[j] = 0
+    f.close()
 
 if __name__ == '__main__':
     try:
