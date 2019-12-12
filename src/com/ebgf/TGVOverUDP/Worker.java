@@ -98,22 +98,33 @@ public class Worker extends Serveur {
                             - on attend un acquittement du dernier paquet envoyé
                             - si on reçoit des ACK en double, ou pas d'ACK, on renvoie le paquet
             /*************************************************************************************/
-            cwnd       = 1;
+            cwnd       = 39;
             int cwnd2  = 1;
             seq        = 1;
             int rwnd   = 1;
-            ssthresh   = 10000;
+            ssthresh   = 5;
             int nBytesLus = 0;
             int dernierAckRecu = 0;
             int ackDupliques = 0;
             byte[] copieBuffer = new byte[MAXBUFFSIZE];
             byte[] seq2 = new byte[NBYTESEQ];
 
+            int i = 0;
+            double sommeCwnd = 0;
+            int maxCwnd = cwnd;
+            int pertesTimeout = 0;
+            int pertesAck = 0;
+
             Scanner scanner = new Scanner(System.in);
 
             while(nBytesLus != -1 || dernierAckRecu != (seq-1)) {
 
                 //  (1) Envoi
+                i++;
+                sommeCwnd += cwnd;
+                if (cwnd > maxCwnd) {
+                    maxCwnd = cwnd;
+                }
                 while (nBytesLus != -1 && dernierAckRecu+cwnd >= seq) {
                     nBytesLus = initEnvoiFichier();
                     envoiBloquant();
@@ -135,6 +146,7 @@ public class Worker extends Serveur {
 
                     //  (2.1) Tout se déroule comme prévu
                     dernierAckRecu++;
+                    cwnd++;
                     if (cwnd < ssthresh) {
                         cwnd++;
                     } else {
@@ -159,11 +171,11 @@ public class Worker extends Serveur {
                     // (2.3) ACK dupliqué -> on renvoie le paquet
                     else if (e.ackRecu == dernierAckRecu) {
 
-                        if (ackDupliques == 1) {
+                        if (ackDupliques == 3) {
                             ackDupliques = 0;
-                            ssthresh = (rwnd<cwnd)? rwnd/2: cwnd/2;
-                            cwnd = 1;
-                            log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\tcwnd = 1\t\tssthresh = "+ssthresh);
+                            //ssthresh = (rwnd<cwnd)? rwnd/2: cwnd/2;
+                            cwnd = 39;
+                            log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\tcwnd = "+cwnd+"\t\tssthresh = "+ssthresh);
 
                             this.bufferEnvoi = window.get(dernierAckRecu+1);
                             this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
@@ -173,6 +185,7 @@ public class Worker extends Serveur {
                             log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
                         } else {
                             // on continue comme si de rien n'était
+                            pertesAck++;
                             ackDupliques++;
                             log(2, "ackRecu dupliqué = "+e.ackRecu+"\t\t"+ackDupliques+" fois");
                         }
@@ -185,9 +198,10 @@ public class Worker extends Serveur {
 
                 //  (2.4) Plus de réponse -> on renvoie un paquet
                 catch (SocketTimeoutException e) {
-                    //ssthresh = cwnd/2;
-                    cwnd = 1;
-                    log(4, "pas de réponse du client !");
+                    pertesTimeout++;
+                    //ssthresh = (rwnd<cwnd)? rwnd/2: cwnd/2;
+                    cwnd = 39;
+                    log(2, "pas de réponse du client !");
 
                     this.bufferEnvoi = window.get(dernierAckRecu+1);
                     this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
@@ -200,7 +214,7 @@ public class Worker extends Serveur {
                 //scanner.nextLine();
             }
 
-
+            double moyenneCwnd = sommeCwnd / i;
 
             /*************************************************************************************
                     (3) Terminaison
@@ -208,6 +222,7 @@ public class Worker extends Serveur {
             initEnvoiChaine("FIN");
             envoiBloquant();
             log(3, "FIN envoyé -> end()");
+            System.out.println((pertesTimeout+pertesAck)+" "+pertesAck+" "+pertesTimeout+" "+maxCwnd+" "+moyenneCwnd);
         } catch (Exception e) {
             // (!) on peut recevoir une SocketException
             // (!) on peut recevoir une UnsupportedEncodingException

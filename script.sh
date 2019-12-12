@@ -9,8 +9,8 @@ echo "MODE UNI-CLIENT"
 
 ip="134.214.202.228"
 port=2000
-client=client2
-taille=3
+client=client1
+taille=1
 
 enBoucle=true
 debugLevel=5
