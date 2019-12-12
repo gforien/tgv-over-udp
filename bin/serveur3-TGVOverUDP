@@ -1,2 +1,0 @@
-#!/bin/bash
-java -cp bin com.ebgf.TGVOverUDP.Test 2000
