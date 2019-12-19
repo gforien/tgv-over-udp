@@ -31,30 +31,56 @@ fi
 java -cp bin com.ebgf.TGVOverUDP.Test $ip $port $debugLevel $bufferSize $timeout $enBoucle &
 sleep 1
 
-echo -e "TCP Reno => cwnd variable\t maxAckDuplique = 3"
-echo -e "$client :: fichier = ${taille}Mo"
-echo -e "bufferSize = $bufferSize\ttimeout = $timeout\tfichier = ${taille}Mo"
+# echo -e "TCP Reno => cwnd variable\t maxAckDuplique = 3"
+# echo -e "$client :: fichier = ${taille}Mo"
+# echo -e "bufferSize = $bufferSize\ttimeout = $timeout\tfichier = ${taille}Mo"
+# echo "-------------------------------------------------------------"
+
+# for k in $(seq 1 10); do
+
+#     # on fait des moyennes sur 5 essais
+#     somme=0
+#     for i in $(seq 1 5); do
+#         (time ./bin/$client $ip $port ${taille}Mo 0) &> temp
+#         sleep 1
+
+#         t=$(cat temp 2>/dev/null | sed 's/,/./')
+#         Mb=$(echo "scale=2; 8*$taille / $t" | bc -l 2>/dev/null)
+#         somme=$(echo "scale=2; $somme + $Mb" | bc -l 2>/dev/null)
+#     done
+#     moyenne=$(echo "scale=2; $somme /5" | bc -l 2>/dev/null)
+
+#     # on calcule le débit
+#     echo -e "cwnd = $cwnd\t\tdebit = $moyenne Mb/s"
+# done
+
 echo "-------------------------------------------------------------"
 
-for k in $(seq 1 10); do
+nbEssais=3
+for i in $(seq 1 $nbEssais); do
+    if [[ ! -f "./bin/fichier$i" ]]; then
+        cp -v "./bin/${taille}Mo" "./bin/fichier$i"
+    fi
 
-    # on fait des moyennes sur 5 essais
-    somme=0
-    for i in $(seq 1 5); do
-        (time ./bin/$client $ip $port ${taille}Mo 0) &> temp
-        sleep 1
-
-        t=$(cat temp 2>/dev/null | sed 's/,/./')
-        Mb=$(echo "scale=2; 8*$taille / $t" | bc -l 2>/dev/null)
-        somme=$(echo "scale=2; $somme + $Mb" | bc -l 2>/dev/null)
-    done
-    moyenne=$(echo "scale=2; $somme /5" | bc -l 2>/dev/null)
-
-    # on calcule le débit
-    echo -e "cwnd = $cwnd\t\tdebit = $moyenne Mb/s"
+    (time ./bin/$client $ip $port fichier$i 0) &> temp$i &
+    sleep 0.25
 done
 
-echo "-------------------------------------------------------------"
+echo -n "On attend le retour du serveur... "
+read
+
+tempsTotal=0
+for i in $(seq 1 $nbEssais); do
+    echo -n "./bin/$client $ip $port fichier$i 0"
+    t=$(cat temp$i 2>/dev/null | sed 's/,/./')
+    Mb=$(echo "scale=2; 8*$taille / $t" | bc -l 2>/dev/null)
+    tempsTotal=$(echo "$tempsTotal + $t" | bc -l 2>/dev/null)
+    echo -e "\t\tt = $t s\t\tdebit = $Mb Mb/s"
+done
+
+Mb=$(echo "scale=2; 8*$taille*$nbEssais / $tempsTotal" | bc -l 2>/dev/null)
+echo "TEMPS TOTAL = $tempsTotal s"
+echo "DEBIT MOYEN = $Mb Mb/s"
+
 # Cleaner le repertoire
 \rm -f temp* copy*
-# rm -fv bin/fichier*

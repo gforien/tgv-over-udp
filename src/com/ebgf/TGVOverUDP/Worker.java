@@ -114,6 +114,7 @@ public class Worker extends Serveur {
             int maxCwnd = cwnd;
             int pertesTimeout = 0;
             int pertesAck = 0;
+            int nbTimeOut=0;
 
             Scanner scanner = new Scanner(System.in);
 
@@ -199,16 +200,20 @@ public class Worker extends Serveur {
                 //  (2.4) Plus de réponse -> on renvoie un paquet
                 catch (SocketTimeoutException e) {
                     pertesTimeout++;
+                    nbTimeOut++;
                     //ssthresh = (rwnd<cwnd)? rwnd/2: cwnd/2;
                     cwnd = 39;
                     log(2, "pas de réponse du client !");
+                    if (nbTimeOut==3){
+                        this.bufferEnvoi = window.get(dernierAckRecu+1);
+                        this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
+                        this.envoiBloquant();
+                        System.arraycopy(bufferEnvoi,0, seq2, 0, NBYTESEQ);
+                        log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
+                        nbTimeOut=0;
+                    }
 
-                    this.bufferEnvoi = window.get(dernierAckRecu+1);
-                    this.packetEnvoi = new DatagramPacket(this.bufferEnvoi, this.bufferEnvoi.length, this.addrClient, this.portClient);
-                    this.envoiBloquant();
-
-                    System.arraycopy(bufferEnvoi,0, seq2, 0, NBYTESEQ);
-                    log(2, "paquet "+new String(seq2, "UTF-8")+" renvoyé");
+                    
                 }
                 log(2, "------------------------------------------------");
                 //scanner.nextLine();
