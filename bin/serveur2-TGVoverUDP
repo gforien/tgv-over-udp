@@ -1,0 +1,6 @@
+#/bin/sh
+
+ip=$(hostname -I | cut -d ' ' -f 1)
+port=$1
+echo -e "Lancement du serveur: ip = $ip \t\t port = $port"
+java -cp . com.ebgf.TGVOverUDP.Test $ip $port 5 1496 1 true
