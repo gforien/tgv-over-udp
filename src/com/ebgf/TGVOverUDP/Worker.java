@@ -87,7 +87,7 @@ public class Worker extends Serveur {
             log(3, "Fichier demandé: "+nomFichier);
             // (!)   le fichier doit exister dans le classpath ./bin   (!)
 
-            this.fluxFichier = new BufferedInputStream(new FileInputStream("./bin/"+nomFichier));
+            this.fluxFichier = new BufferedInputStream(new FileInputStream("./"+nomFichier));
             this.socket.setSoTimeout(TIMEOUT);
 
 
